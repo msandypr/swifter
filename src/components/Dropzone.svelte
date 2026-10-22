@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { FolderArchive, Upload, Sparkles, AlertCircle } from 'lucide-svelte';
+  import { Upload, AlertCircle } from 'lucide-svelte';
 
   let { onSelectPath, isAnalyzing = false }: {
     onSelectPath: (path: string) => void;
@@ -27,7 +27,6 @@
 
     const files = e.dataTransfer?.files;
     if (files && files.length > 0) {
-      // In web/tauri, file objects have a path property
       const file = files[0] as unknown as { path?: string; name: string };
       if (file.path) {
         onSelectPath(file.path);
@@ -55,44 +54,30 @@
   <div
     role="region"
     aria-label="File dropzone"
-    class="w-full relative group rounded-2xl transition-all duration-300 border-2 border-dashed p-10 flex flex-col items-center justify-center cursor-pointer
+    class="w-full relative rounded-2xl transition-all duration-200 border-2 border-dashed p-12 flex flex-col items-center justify-center cursor-pointer
       {isDragging
-        ? 'border-sky-400 bg-sky-500/10 shadow-[0_0_30px_rgba(56,189,248,0.2)] scale-[1.01]'
-        : 'border-white/15 hover:border-white/30 glass-card shadow-xl'}"
+        ? 'border-zinc-300 bg-white/5 scale-[1.01]'
+        : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/40 shadow-xl'}"
     ondragover={handleDragOver}
     ondragleave={handleDragLeave}
     ondrop={handleDrop}
   >
-    <!-- Background subtle glow -->
-    <div class="absolute inset-0 bg-gradient-to-b from-sky-500/5 to-transparent rounded-2xl pointer-events-none"></div>
-
-    <div class="relative z-10 flex flex-col items-center text-center space-y-4">
-      <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-600/30 group-hover:scale-105 transition-transform">
+    <div class="flex flex-col items-center text-center space-y-4">
+      <div class="w-14 h-14 rounded-2xl bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-300 shadow-md">
         {#if isAnalyzing}
-          <div class="w-8 h-8 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+          <div class="w-6 h-6 border-2 border-zinc-200 border-t-transparent rounded-full animate-spin"></div>
         {:else}
-          <Upload class="w-8 h-8 text-white" />
+          <Upload class="w-6 h-6 text-zinc-300" />
         {/if}
       </div>
 
-      <div class="space-y-1">
-        <h2 class="text-xl font-semibold text-slate-100">
-          {isAnalyzing ? 'Inspecting binary & dependencies...' : 'Drop Windows .exe or Game Folder'}
+      <div class="space-y-1.5">
+        <h2 class="text-lg font-semibold text-zinc-100">
+          {isAnalyzing ? 'Inspecting executable...' : 'Drag and drop your Windows executable (.exe) or game folder'}
         </h2>
-        <p class="text-sm text-slate-400 max-w-md">
-          Drag DRM-free game folders from itch.io, indie packages, or utility software. Swifter preserves full folder assets.
+        <p class="text-xs text-zinc-400 max-w-md leading-relaxed">
+          Drop an .exe file or its parent game directory to inspect and package into a native macOS app.
         </p>
-      </div>
-
-      <div class="flex items-center gap-2 pt-2">
-        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-white/5 border border-white/10 text-slate-300">
-          <FolderArchive class="w-3.5 h-3.5 text-sky-400" />
-          Unity, Godot & GameMaker
-        </span>
-        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-white/5 border border-white/10 text-slate-300">
-          <Sparkles class="w-3.5 h-3.5 text-indigo-400" />
-          Zero-Config Packaging
-        </span>
       </div>
     </div>
   </div>
@@ -104,13 +89,13 @@
         type="text"
         bind:value={manualPath}
         placeholder="Or paste full path: /Users/.../Games/MyGame (or MyGame.exe)"
-        class="flex-1 px-4 py-2.5 rounded-xl glass-input text-sm placeholder:text-slate-500 transition-all"
+        class="flex-1 px-4 py-2.5 rounded-xl glass-input text-xs text-zinc-200 placeholder:text-zinc-600 transition-all"
         disabled={isAnalyzing}
       />
       <button
         type="submit"
         disabled={isAnalyzing}
-        class="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 active:scale-95 disabled:opacity-50 text-sm font-medium text-white transition-all shadow-md shadow-sky-600/25"
+        class="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 disabled:opacity-50 text-xs font-medium text-zinc-200 border border-white/10 transition-all shadow-sm"
       >
         Inspect
       </button>

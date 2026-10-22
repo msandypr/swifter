@@ -4053,7 +4053,7 @@ dependencies = [
 
 [[package]]
 name = "swifter"
-version = "2.0.0"
+version = "0.1.0"
 dependencies = [
  "dirs 5.0.1",
  "icns",
