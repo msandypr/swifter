@@ -1,156 +1,232 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
+  import {
+    inspectTarget,
+    packToApp,
+    dryRunCheck,
+    launchInstalledApp,
+    openInFinder,
+    type SwifterInspection
+  } from '$lib/tauri-bridge';
+  import Dropzone from '../components/Dropzone.svelte';
+  import GameInspector from '../components/GameInspector.svelte';
+  import ProgressModal from '../components/ProgressModal.svelte';
+  import Shelf from '../components/Shelf.svelte';
+  import { Package, Library, Terminal, X, AlertCircle } from 'lucide-svelte';
 
-  let name = $state("");
-  let greetMsg = $state("");
+  type ActiveTab = 'packer' | 'shelf';
 
-  async function greet(event: Event) {
-    event.preventDefault();
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    greetMsg = await invoke("greet", { name });
+  let activeTab = $state<ActiveTab>('packer');
+  let inspection = $state<SwifterInspection | null>(null);
+  let isAnalyzing = $state(false);
+  let isPacking = $state(false);
+  let isDryRunning = $state(false);
+  let errorMessage = $state('');
+
+  // Progress modal state
+  let isProgressModalOpen = $state(false);
+  let isProgressComplete = $state(false);
+  let currentProgressStep = $state(1);
+  let createdBundlePath = $state('');
+  let packedAppName = $state('');
+
+  // Dry-run drawer state
+  let isDryRunDrawerOpen = $state(false);
+  let dryRunLogs = $state<string[]>([]);
+
+  async function handleInspectPath(path: string) {
+    isAnalyzing = true;
+    errorMessage = '';
+    try {
+      const res = await inspectTarget(path);
+      inspection = res;
+    } catch (err: unknown) {
+      errorMessage = err instanceof Error ? err.message : String(err);
+      inspection = null;
+    } finally {
+      isAnalyzing = false;
+    }
+  }
+
+  async function handlePack(options: {
+    appName: string;
+    backend: string;
+    enableMsync: boolean;
+    copyFiles: boolean;
+  }) {
+    if (!inspection) return;
+
+    isPacking = true;
+    errorMessage = '';
+    isProgressModalOpen = true;
+    isProgressComplete = false;
+    currentProgressStep = 1;
+    packedAppName = options.appName;
+
+    try {
+      // Step 1: Reading binary & assets
+      currentProgressStep = 1;
+      await new Promise((r) => setTimeout(r, 400));
+
+      // Step 2: Micro-prefix
+      currentProgressStep = 2;
+      await new Promise((r) => setTimeout(r, 400));
+
+      // Step 3: Launcher
+      currentProgressStep = 3;
+      await new Promise((r) => setTimeout(r, 300));
+
+      // Step 4: Bundle builder
+      currentProgressStep = 4;
+      const bundle = await packToApp({
+        game_folder_path: inspection.game_folder_path,
+        target_exe_name: inspection.target_exe_name,
+        app_name: options.appName,
+        backend_choice: options.backend,
+        enable_msync: options.enableMsync,
+        copy_files_instead_of_symlink: options.copyFiles,
+      });
+
+      createdBundlePath = bundle;
+      isProgressComplete = true;
+    } catch (err: unknown) {
+      errorMessage = err instanceof Error ? err.message : String(err);
+      isProgressModalOpen = false;
+    } finally {
+      isPacking = false;
+    }
+  }
+
+  async function handleTestRun(exePath: string, backend: string) {
+    isDryRunning = true;
+    errorMessage = '';
+    try {
+      const logs = await dryRunCheck(exePath, backend);
+      dryRunLogs = logs;
+      isDryRunDrawerOpen = true;
+    } catch (err: unknown) {
+      errorMessage = err instanceof Error ? err.message : String(err);
+    } finally {
+      isDryRunning = false;
+    }
+  }
+
+  function handleResetPacker() {
+    inspection = null;
+    errorMessage = '';
   }
 </script>
 
-<main class="container">
-  <h1>Welcome to Tauri + Svelte</h1>
+<div class="flex-1 flex flex-col h-full overflow-hidden">
+  <!-- Segmented Navigation Header -->
+  <div class="px-8 pt-4 pb-2 flex items-center justify-between shrink-0">
+    <div class="flex items-center p-1 rounded-xl glass-card space-x-1">
+      <button
+        onclick={() => (activeTab = 'packer')}
+        class="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-medium transition-all {activeTab === 'packer' ? 'bg-sky-500/20 text-sky-300 shadow border border-sky-500/30' : 'text-slate-400 hover:text-slate-200'}"
+      >
+        <Package class="w-3.5 h-3.5" />
+        Packer
+      </button>
 
-  <div class="row">
-    <a href="https://vite.dev" target="_blank">
-      <img src="/vite.svg" class="logo vite" alt="Vite Logo" />
-    </a>
-    <a href="https://tauri.app" target="_blank">
-      <img src="/tauri.svg" class="logo tauri" alt="Tauri Logo" />
-    </a>
-    <a href="https://svelte.dev" target="_blank">
-      <img src="/svelte.svg" class="logo svelte-kit" alt="SvelteKit Logo" />
-    </a>
+      <button
+        onclick={() => (activeTab = 'shelf')}
+        class="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-medium transition-all {activeTab === 'shelf' ? 'bg-sky-500/20 text-sky-300 shadow border border-sky-500/30' : 'text-slate-400 hover:text-slate-200'}"
+      >
+        <Library class="w-3.5 h-3.5" />
+        Shelf
+      </button>
+    </div>
+
+    <div class="text-[11px] text-slate-500 font-mono">
+      Swifter Engine v2.0
+    </div>
   </div>
-  <p>Click on the Tauri, Vite, and SvelteKit logos to learn more.</p>
 
-  <form class="row" onsubmit={greet}>
-    <input id="greet-input" placeholder="Enter a name..." bind:value={name} />
-    <button type="submit">Greet</button>
-  </form>
-  <p>{greetMsg}</p>
-</main>
+  <!-- Global Error Banner -->
+  {#if errorMessage}
+    <div class="mx-8 mt-2 p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-between text-rose-200 text-xs">
+      <div class="flex items-center gap-2">
+        <AlertCircle class="w-4 h-4 text-rose-400 shrink-0" />
+        <span>{errorMessage}</span>
+      </div>
+      <button onclick={() => (errorMessage = '')} class="p-1 hover:bg-rose-500/20 rounded">
+        <X class="w-3.5 h-3.5" />
+      </button>
+    </div>
+  {/if}
 
-<style>
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
+  <!-- Tab Content Views -->
+  <div class="flex-1 overflow-hidden relative flex flex-col items-center justify-center">
+    {#if activeTab === 'packer'}
+      {#if !inspection}
+        <Dropzone onSelectPath={handleInspectPath} {isAnalyzing} />
+      {:else}
+        <GameInspector
+          {inspection}
+          onPack={handlePack}
+          onTestRun={handleTestRun}
+          onBack={handleResetPacker}
+          {isPacking}
+          {isDryRunning}
+        />
+      {/if}
+    {:else}
+      <Shelf onNavigatePacker={() => (activeTab = 'packer')} />
+    {/if}
+  </div>
 
-.logo.svelte-kit:hover {
-  filter: drop-shadow(0 0 2em #ff3e00);
-}
+  <!-- Packaging Progress Modal -->
+  <ProgressModal
+    isOpen={isProgressModalOpen}
+    isComplete={isProgressComplete}
+    bundlePath={createdBundlePath}
+    appName={packedAppName}
+    currentStep={currentProgressStep}
+    onClose={() => {
+      isProgressModalOpen = false;
+      if (isProgressComplete) {
+        activeTab = 'shelf';
+        handleResetPacker();
+      }
+    }}
+    onLaunch={(path) => launchInstalledApp(path)}
+    onReveal={(path) => openInFinder(path)}
+  />
 
-:root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
+  <!-- Dry-Run Output Drawer/Modal -->
+  {#if isDryRunDrawerOpen}
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
+      <div class="w-full max-w-2xl h-[420px] glass-panel rounded-2xl p-5 shadow-2xl flex flex-col space-y-3 border border-white/15">
+        <div class="flex items-center justify-between pb-2 border-b border-white/10">
+          <div class="flex items-center gap-2 text-xs font-semibold text-slate-200">
+            <Terminal class="w-4 h-4 text-sky-400" />
+            Wine 3-Second Dry-Run Diagnostic
+          </div>
+          <button
+            onclick={() => (isDryRunDrawerOpen = false)}
+            class="p-1 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-white/5 transition-colors"
+          >
+            <X class="w-4 h-4" />
+          </button>
+        </div>
 
-  color: #0f0f0f;
-  background-color: #f6f6f6;
+        <div class="flex-1 overflow-y-auto font-mono text-[11px] p-3 rounded-xl bg-black/50 border border-white/5 text-slate-300 space-y-1 select-text">
+          {#each dryRunLogs as line}
+            <div class="{line.includes('err:') ? 'text-rose-400' : line.includes('warn:') ? 'text-amber-400' : 'text-slate-300'}">
+              {line}
+            </div>
+          {/each}
+        </div>
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
-}
-
-.container {
-  margin: 0;
-  padding-top: 10vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
-  display: flex;
-  justify-content: center;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
-h1 {
-  text-align: center;
-}
-
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-}
-
-button {
-  cursor: pointer;
-}
-
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
-}
-
-input,
-button {
-  outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
-  }
-
-  a:hover {
-    color: #24c8db;
-  }
-
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
-  }
-  button:active {
-    background-color: #0f0f0f69;
-  }
-}
-
-</style>
+        <div class="flex justify-end pt-1">
+          <button
+            onclick={() => (isDryRunDrawerOpen = false)}
+            class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-medium text-slate-200 transition-colors"
+          >
+            Close Logs
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+</div>
