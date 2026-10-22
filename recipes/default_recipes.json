@@ -1,0 +1,58 @@
+{
+  "engines": {
+    "Unity": {
+      "name": "Unity Engine",
+      "recommended_backend": "DXVK",
+      "env": {
+        "WINEDLLOVERRIDES": "d3d11=n,b;dxgi=n,b"
+      },
+      "enable_msync": true,
+      "enable_esync": true
+    },
+    "Godot": {
+      "name": "Godot Engine",
+      "recommended_backend": "DXVK",
+      "env": {
+        "WINEDLLOVERRIDES": "d3d11=n,b;dxgi=n,b"
+      },
+      "enable_msync": true,
+      "enable_esync": true
+    },
+    "GameMaker": {
+      "name": "GameMaker Studio",
+      "recommended_backend": "Vanilla",
+      "env": {},
+      "enable_msync": true,
+      "enable_esync": false
+    },
+    "Generic": {
+      "name": "Generic Windows Application",
+      "recommended_backend": "DXVK",
+      "env": {
+        "WINEDLLOVERRIDES": "d3d11=n,b;dxgi=n,b"
+      },
+      "enable_msync": true,
+      "enable_esync": true
+    }
+  },
+  "backends": {
+    "DXVK": {
+      "name": "DXVK (DirectX 9-11 via MoltenVK)",
+      "env": {
+        "WINEDLLOVERRIDES": "d3d11=n,b;d3d10core=n,b;d3d9=n,b;dxgi=n,b"
+      }
+    },
+    "D3DMetal": {
+      "name": "Apple D3DMetal (Game Porting Toolkit 2)",
+      "env": {
+        "WINEESYNC": "1",
+        "WINEMSYNC": "1",
+        "WINEDLLOVERRIDES": "d3d12=n;d3d11=n;dxgi=n"
+      }
+    },
+    "Vanilla": {
+      "name": "Vanilla Wine (Built-in Translation)",
+      "env": {}
+    }
+  }
+}
