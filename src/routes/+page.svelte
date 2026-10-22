@@ -236,13 +236,10 @@
 </script>
 
 <div class="flex-1 flex flex-col h-full overflow-hidden bg-[#111113] text-zinc-200">
-  <!-- Segmented Navigation Header with Centered Navbar & Seamlessly Integrated Logo -->
-  <div class="px-8 pt-4 pb-2 flex items-center justify-between shrink-0 relative">
-    <!-- Left spacer balancing right widget -->
-    <div class="w-36 hidden sm:block"></div>
-
+  <!-- Segmented Navigation Header with Centered Navbar & Integrated Logo -->
+  <div class="px-8 pt-4 pb-2 flex items-center justify-center shrink-0">
     <!-- Centered Unified Navbar with Integrated Logo Pill -->
-    <div class="flex items-center p-1 rounded-xl glass-card border border-zinc-800 bg-zinc-900/60 shadow-sm mx-auto">
+    <div class="flex items-center p-1 rounded-xl glass-card border border-zinc-800 bg-zinc-900/60 shadow-sm">
       <!-- Integrated Brand Header -->
       <div class="flex items-center gap-2 pl-2 pr-3 py-1 border-r border-zinc-800 mr-1 select-none">
         <img
@@ -257,7 +254,7 @@
       <div class="flex items-center space-x-1">
         <button
           onclick={() => (activeTab = 'packer')}
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'packer' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'packer' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
         >
           <Package class="w-3.5 h-3.5 text-zinc-400" />
           Packer
@@ -265,7 +262,7 @@
 
         <button
           onclick={() => (activeTab = 'shelf')}
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'shelf' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'shelf' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
         >
           <Library class="w-3.5 h-3.5 text-zinc-400" />
           Shelf
@@ -274,7 +271,7 @@
         <!-- Requirements Tab with status dot -->
         <button
           onclick={() => (activeTab = 'requirements')}
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'requirements' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'requirements' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
         >
           <Cpu class="w-3.5 h-3.5 text-zinc-400" />
           <span>Requirements</span>
@@ -289,7 +286,7 @@
 
         <button
           onclick={() => (activeTab = 'guide')}
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'guide' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'guide' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
         >
           <BookOpen class="w-3.5 h-3.5 text-zinc-400" />
           Guide
@@ -297,32 +294,12 @@
 
         <button
           onclick={() => (activeTab = 'about')}
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'about' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'about' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
         >
           <Info class="w-3.5 h-3.5 text-zinc-400" />
           About
         </button>
       </div>
-    </div>
-
-    <!-- Right Header Status Indicator -->
-    <div class="w-36 flex justify-end items-center">
-      {#if runtimeStatus}
-        {#if runtimeStatus.is_installed}
-          <div class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-[10px] text-zinc-300 font-mono">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-            {runtimeStatus.runtime_name || 'Wine Ready'}
-          </div>
-        {:else}
-          <button
-            onclick={requestInstallRuntime}
-            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-[10px] text-zinc-300 transition-all active:scale-95"
-          >
-            <Download class="w-3 h-3 text-zinc-400" />
-            <span>Install Wine</span>
-          </button>
-        {/if}
-      {/if}
     </div>
   </div>
 

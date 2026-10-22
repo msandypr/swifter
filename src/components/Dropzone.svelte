@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { getCurrentWebview } from '@tauri-apps/api/webview';
   import { Upload, AlertCircle } from 'lucide-svelte';
 
   let { onSelectPath, isAnalyzing = false }: {
@@ -10,6 +12,39 @@
   let manualPath = $state('');
   let inputError = $state('');
 
+  onMount(() => {
+    let unlisten: (() => void) | undefined;
+
+    // Listen to native macOS AppKit drag-and-drop events via Tauri Webview API
+    // This is required on macOS because WebKit HTML5 drag-and-drop strips local filesystem paths
+    getCurrentWebview()
+      .onDragDropEvent((event) => {
+        if (event.payload.type === 'enter' || event.payload.type === 'over') {
+          isDragging = true;
+        } else if (event.payload.type === 'drop') {
+          isDragging = false;
+          inputError = '';
+          const paths = event.payload.paths;
+          if (paths && paths.length > 0) {
+            onSelectPath(paths[0]);
+          }
+        } else if (event.payload.type === 'leave') {
+          isDragging = false;
+        }
+      })
+      .then((unsub) => {
+        unlisten = unsub;
+      })
+      .catch((err) => {
+        console.warn('Native drag-drop listener failed to register:', err);
+      });
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  });
+
+  // Fallback HTML5 drag handlers
   function handleDragOver(e: DragEvent) {
     e.preventDefault();
     isDragging = true;
@@ -33,8 +68,6 @@
         return;
       }
     }
-
-    inputError = 'Could not resolve local file path. Please type or paste the absolute path below.';
   }
 
   function handleManualSubmit(e: SubmitEvent) {
@@ -73,7 +106,7 @@
 
       <div class="space-y-1.5">
         <h2 class="text-lg font-semibold text-zinc-100">
-          {isAnalyzing ? 'Inspecting executable...' : 'Drag and drop your Windows executable (.exe) or game folder'}
+          {isAnalyzing ? 'Inspecting game context...' : 'Drag and drop your Windows executable (.exe) or game folder'}
         </h2>
         <p class="text-xs text-zinc-400 max-w-md leading-relaxed">
           Drop an .exe file or its parent game directory to inspect and package into a native macOS app.
