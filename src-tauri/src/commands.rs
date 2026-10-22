@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use serde::{Deserialize, Serialize};
-
+use tauri::Emitter;
 use crate::analyzer::{inspect_target_path, SwifterInspection};
 use crate::engine::bundle_builder::{self, BuildAppOptions};
 use crate::engine::prefix_mgr;
@@ -22,6 +22,16 @@ pub struct RuntimeStatus {
     pub has_dxvk: bool,
     pub has_d3dmetal: bool,
 }
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct RuntimeDownloadProgress {
+    pub stage: String,
+    pub percent: f64,
+    pub downloaded_mb: f64,
+    pub total_mb: f64,
+    pub speed_mb: f64,
+    pub message: String,
+}
+
 
 
 /// 1. Inspects a dropped .exe file or game folder
@@ -323,8 +333,8 @@ pub async fn check_runtime_status() -> Result<RuntimeStatus, String> {
 
 /// 9. Downloads and provisions the official Swifter Wine runtime in background
 #[tauri::command]
-pub async fn install_swifter_runtime() -> Result<String, String> {
-    tokio::task::spawn_blocking(|| {
+pub async fn install_swifter_runtime(app: tauri::AppHandle) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
         let runtimes_dir = prefix_mgr::get_swifter_support_dir().join("runtimes");
         let target_wine_dir = runtimes_dir.join("wine");
         let cache_dir = dirs::cache_dir()
@@ -335,10 +345,22 @@ pub async fn install_swifter_runtime() -> Result<String, String> {
         let _ = std::fs::create_dir_all(&cache_dir);
 
         let tar_dest = cache_dir.join("wine-devel-osx64.tar.xz");
+        let _ = std::fs::remove_file(&tar_dest);
         let download_url = "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.18/wine-devel-11.18-osx64.tar.xz";
+        let total_bytes: u64 = 190974384;
+        let total_mb: f64 = total_bytes as f64 / (1024.0 * 1024.0);
 
-        // Download using system curl with follow redirects and fail on HTTP errors
-        let curl_status = Command::new("/usr/bin/curl")
+        let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
+            stage: "downloading".to_string(),
+            percent: 0.0,
+            downloaded_mb: 0.0,
+            total_mb,
+            speed_mb: 0.0,
+            message: "Connecting to GitHub releases...".to_string(),
+        });
+
+        // Spawn curl in background
+        let mut child = Command::new("/usr/bin/curl")
             .arg("-L")
             .arg("-f")
             .arg("--retry")
@@ -346,14 +368,61 @@ pub async fn install_swifter_runtime() -> Result<String, String> {
             .arg("-o")
             .arg(&tar_dest)
             .arg(download_url)
-            .status()
+            .spawn()
             .map_err(|e| format!("Failed to execute curl: {}", e))?;
 
-        if !curl_status.success() {
-            return Err("Failed to download Wine runtime package from GitHub.".to_string());
+        let mut prev_bytes: u64 = 0;
+        loop {
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    if !status.success() {
+                        let err_msg = "Download interrupted or network connection failed.".to_string();
+                        let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
+                            stage: "error".to_string(),
+                            percent: 0.0,
+                            downloaded_mb: 0.0,
+                            total_mb,
+                            speed_mb: 0.0,
+                            message: err_msg.clone(),
+                        });
+                        return Err(err_msg);
+                    }
+                    break;
+                }
+                Ok(None) => {
+                    let current_bytes = std::fs::metadata(&tar_dest).map(|m| m.len()).unwrap_or(0);
+                    let downloaded_mb = current_bytes as f64 / (1024.0 * 1024.0);
+                    let percent = ((current_bytes as f64 / total_bytes as f64) * 100.0).min(99.0);
+                    let speed_mb = ((current_bytes.saturating_sub(prev_bytes)) as f64 / 0.5) / (1024.0 * 1024.0);
+                    prev_bytes = current_bytes;
+
+                    let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
+                        stage: "downloading".to_string(),
+                        percent,
+                        downloaded_mb,
+                        total_mb,
+                        speed_mb,
+                        message: format!("{:.1} MB / {:.1} MB ({:.1} MB/s)", downloaded_mb, total_mb, speed_mb),
+                    });
+
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                }
+                Err(e) => {
+                    return Err(format!("Process monitoring error: {}", e));
+                }
+            }
         }
 
-        // Extract to temporary staging folder
+        // Stage 2: Extracting
+        let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
+            stage: "extracting".to_string(),
+            percent: 100.0,
+            downloaded_mb: total_mb,
+            total_mb,
+            speed_mb: 0.0,
+            message: "Extracting portable Wine runtime archive (approx. 15-20s)...".to_string(),
+        });
+
         let stage_dir = cache_dir.join("wine_staging");
         let _ = std::fs::remove_dir_all(&stage_dir);
         let _ = std::fs::create_dir_all(&stage_dir);
@@ -367,10 +436,28 @@ pub async fn install_swifter_runtime() -> Result<String, String> {
             .map_err(|e| format!("Failed to extract tar archive: {}", e))?;
 
         if !tar_status.success() {
-            return Err("Failed to unpack Wine runtime archive.".to_string());
+            let err_msg = "Failed to unpack Wine runtime archive.".to_string();
+            let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
+                stage: "error".to_string(),
+                percent: 0.0,
+                downloaded_mb: total_mb,
+                total_mb,
+                speed_mb: 0.0,
+                message: err_msg.clone(),
+            });
+            return Err(err_msg);
         }
 
-        // Locate the internal wine directory (e.g. Wine Devel.app/Contents/Resources/wine)
+        // Stage 3: Configuring
+        let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
+            stage: "configuring".to_string(),
+            percent: 100.0,
+            downloaded_mb: total_mb,
+            total_mb,
+            speed_mb: 0.0,
+            message: "Configuring permissions and verifying Wine binaries...".to_string(),
+        });
+
         let mut source_wine_dir = None;
         for entry in walkdir::WalkDir::new(&stage_dir).max_depth(5).into_iter().filter_map(|e| e.ok()) {
             if entry.file_type().is_dir() && entry.file_name() == "wine" {
@@ -384,11 +471,9 @@ pub async fn install_swifter_runtime() -> Result<String, String> {
         let source_dir = source_wine_dir
             .ok_or_else(|| "Could not locate wine bin/wine64 inside extracted archive.".to_string())?;
 
-        // Move or copy into target_wine_dir
         let _ = std::fs::remove_dir_all(&target_wine_dir);
         let _ = std::fs::create_dir_all(&target_wine_dir);
 
-        // Use cp -R to copy extracted files
         let copy_status = Command::new("/bin/cp")
             .arg("-R")
             .arg(format!("{}/.", source_dir.display()))
@@ -397,21 +482,39 @@ pub async fn install_swifter_runtime() -> Result<String, String> {
             .map_err(|e| format!("Failed to copy wine runtime into place: {}", e))?;
 
         if !copy_status.success() {
-            return Err("Failed to move wine runtime into Swifter Application Support folder.".to_string());
+            let err_msg = "Failed to move wine runtime into Swifter Application Support folder.".to_string();
+            let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
+                stage: "error".to_string(),
+                percent: 0.0,
+                downloaded_mb: total_mb,
+                total_mb,
+                speed_mb: 0.0,
+                message: err_msg.clone(),
+            });
+            return Err(err_msg);
         }
 
-        // Ensure chmod +x on bin/wine64 and bin/wine
         let wine64 = target_wine_dir.join("bin/wine64");
         if wine64.exists() {
             use std::os::unix::fs::PermissionsExt;
             let _ = std::fs::set_permissions(&wine64, std::fs::Permissions::from_mode(0o755));
         }
 
-        // Cleanup temporary archives
         let _ = std::fs::remove_dir_all(&stage_dir);
         let _ = std::fs::remove_file(&tar_dest);
 
-        Ok(format!("Wine runtime installed successfully at {}", target_wine_dir.display()))
+        // Stage 4: Completed
+        let success_msg = format!("Wine runtime installed and verified at {}", target_wine_dir.display());
+        let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
+            stage: "completed".to_string(),
+            percent: 100.0,
+            downloaded_mb: total_mb,
+            total_mb,
+            speed_mb: 0.0,
+            message: success_msg.clone(),
+        });
+
+        Ok(success_msg)
     })
     .await
     .map_err(|e| format!("Task execution error: {}", e))?

@@ -39,6 +39,15 @@ export interface RuntimeStatus {
   has_d3dmetal: boolean;
 }
 
+export interface RuntimeDownloadProgress {
+  stage: 'downloading' | 'extracting' | 'configuring' | 'completed' | 'error';
+  percent: number;
+  downloaded_mb: number;
+  total_mb: number;
+  speed_mb: number;
+  message: string;
+}
+
 export async function inspectTarget(droppedPath: string): Promise<SwifterInspection> {
   return await invoke<SwifterInspection>('inspect_target', { droppedPath });
 }
