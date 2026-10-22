@@ -22,9 +22,7 @@
 <div class="w-full max-w-2xl mx-auto flex flex-col p-6 space-y-6 overflow-y-auto max-h-[calc(100vh-4rem)] text-zinc-300">
   <!-- Header Card -->
   <div class="glass-card rounded-2xl p-6 border border-zinc-800 bg-zinc-900/40 flex flex-col items-center text-center space-y-3">
-    <div class="w-14 h-14 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center shadow">
-      <Sparkles class="w-6 h-6 text-zinc-300" />
-    </div>
+    <img src="/logo-swifter.png" alt="Swifter" class="w-16 h-16 rounded-2xl shadow-md object-contain" />
 
     <div>
       <h2 class="text-xl font-bold text-zinc-100">Swifter</h2>
