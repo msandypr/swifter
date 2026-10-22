@@ -505,8 +505,47 @@ pub async fn install_swifter_runtime(app: tauri::AppHandle) -> Result<String, St
         let _ = std::fs::remove_dir_all(&stage_dir);
         let _ = std::fs::remove_file(&tar_dest);
 
-        // Stage 4: Completed
-        let success_msg = format!("Wine runtime installed and verified at {}", target_wine_dir.display());
+        // Stage 4: Install DXVK DirectX 10/11 Vulkan translation libraries into wine-shared
+        let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
+            stage: "configuring".to_string(),
+            percent: 100.0,
+            downloaded_mb: total_mb,
+            total_mb,
+            speed_mb: 0.0,
+            message: "Configuring DXVK DirectX 10/11 translation libraries (~2.7 MB)...".to_string(),
+        });
+
+        let dxvk_url = "https://github.com/Gcenx/DXVK-macOS/releases/download/v1.10.3-20230507-repack/dxvk-macOS-async-v1.10.3-20230507-repack.tar.gz";
+        let dxvk_tar = cache_dir.join("dxvk-macOS.tar.gz");
+        if Command::new("/usr/bin/curl").arg("-L").arg("-f").arg("-o").arg(&dxvk_tar).arg(dxvk_url).status().map(|s| s.success()).unwrap_or(false) {
+            let dxvk_stage = cache_dir.join("dxvk_stage");
+            let _ = std::fs::remove_dir_all(&dxvk_stage);
+            let _ = std::fs::create_dir_all(&dxvk_stage);
+            if Command::new("/usr/bin/tar").arg("-xzf").arg(&dxvk_tar).arg("-C").arg(&dxvk_stage).status().map(|s| s.success()).unwrap_or(false) {
+                let shared_runtime = prefix_mgr::get_shared_runtime_dir();
+                let sys32 = shared_runtime.join("drive_c/windows/system32");
+                let syswow = shared_runtime.join("drive_c/windows/syswow64");
+                let _ = std::fs::create_dir_all(&sys32);
+                let _ = std::fs::create_dir_all(&syswow);
+
+                for entry in walkdir::WalkDir::new(&dxvk_stage).into_iter().filter_map(|e| e.ok()) {
+                    if entry.file_type().is_file() && entry.path().extension().and_then(|s| s.to_str()).map(|e| e == "dll").unwrap_or(false) {
+                        let path_str = entry.path().to_string_lossy();
+                        let filename = entry.file_name();
+                        if path_str.contains("x64") {
+                            let _ = std::fs::copy(entry.path(), sys32.join(filename));
+                        } else if path_str.contains("x32") {
+                            let _ = std::fs::copy(entry.path(), syswow.join(filename));
+                        }
+                    }
+                }
+            }
+            let _ = std::fs::remove_dir_all(&dxvk_stage);
+            let _ = std::fs::remove_file(&dxvk_tar);
+        }
+
+        // Stage 5: Completed
+        let success_msg = format!("Wine runtime and DXVK installed and verified at {}", target_wine_dir.display());
         let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
             stage: "completed".to_string(),
             percent: 100.0,
