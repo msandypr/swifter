@@ -88,7 +88,7 @@
   });
 </script>
 
-<div class="w-full max-w-4xl mx-auto flex flex-col p-6 space-y-6 overflow-y-auto max-h-[calc(100vh-4rem)]">
+<div class="w-full max-w-4xl mx-auto flex flex-col space-y-6 pb-8">
   <!-- Top Header -->
   <div class="flex items-center justify-between">
     <div>

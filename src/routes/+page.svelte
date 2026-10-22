@@ -343,11 +343,13 @@
     </div>
   {/if}
 
-  <!-- Tab Content Views with Smooth Fade Transitions -->
-  <div class="flex-1 overflow-hidden relative flex flex-col items-center justify-center transition-opacity duration-200">
+  <!-- Tab Content Views with Smooth Fade Transitions & Proper Top Alignment -->
+  <div class="flex-1 overflow-y-auto relative flex flex-col items-center justify-start w-full px-6 py-4 transition-opacity duration-200">
     {#if activeTab === 'packer'}
       {#if !inspection}
-        <Dropzone onSelectPath={handleInspectPath} {isAnalyzing} />
+        <div class="my-auto w-full flex items-center justify-center py-8">
+          <Dropzone onSelectPath={handleInspectPath} {isAnalyzing} />
+        </div>
       {:else}
         <GameInspector
           {inspection}

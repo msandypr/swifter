@@ -561,15 +561,23 @@ pub async fn run_installer_in_prefix(exe_path: String, app_slug: String) -> Resu
         // Scan drive_c inside the micro-prefix for all newly installed .exe files
         let mut installed_exes = Vec::new();
         let drive_c = prefix_dir.join("drive_c");
-        if drive_c.exists() {
-            for entry in walkdir::WalkDir::new(&drive_c).max_depth(6).into_iter().filter_map(|e| e.ok()) {
-                if entry.file_type().is_file() {
-                    let p = entry.path();
-                    if p.extension().and_then(|s| s.to_str()).map(|ext| ext.eq_ignore_ascii_case("exe")).unwrap_or(false) {
-                        let name = p.file_name().map(|s| s.to_string_lossy().to_lowercase()).unwrap_or_default();
-                        if !name.starts_with("unins") && !name.contains("setup") && !name.contains("install") && !name.contains("crash") {
-                            if let Ok(rel) = p.strip_prefix(&drive_c) {
-                                installed_exes.push(format!("drive_c/{}", rel.to_string_lossy()));
+        let shared_drive_c = prefix_mgr::get_shared_runtime_dir().join("drive_c");
+        let search_dirs = [drive_c, shared_drive_c];
+
+        for d in search_dirs {
+            if d.exists() {
+                for entry in walkdir::WalkDir::new(&d).follow_links(true).max_depth(6).into_iter().filter_map(|e| e.ok()) {
+                    if entry.file_type().is_file() {
+                        let p = entry.path();
+                        if p.extension().and_then(|s| s.to_str()).map(|ext| ext.eq_ignore_ascii_case("exe")).unwrap_or(false) {
+                            let name = p.file_name().map(|s| s.to_string_lossy().to_lowercase()).unwrap_or_default();
+                            if !name.starts_with("unins") && !name.contains("setup") && !name.contains("install") && !name.contains("crash") {
+                                if let Ok(rel) = p.strip_prefix(&d) {
+                                    let candidate = format!("drive_c/{}", rel.to_string_lossy());
+                                    if !installed_exes.contains(&candidate) {
+                                        installed_exes.push(candidate);
+                                    }
+                                }
                             }
                         }
                     }
@@ -610,22 +618,29 @@ pub async fn scan_available_exes_in_app(bundle_path: String) -> Result<Vec<Strin
         }
     }
 
-    // 2. Scan prefix drive_c
+    // 2. Scan prefix drive_c and shared runtime drive_c with follow_links
     let prefix_dir = prefix_mgr::get_prefix_dir(app_slug);
     let drive_c = prefix_dir.join("drive_c");
-    if drive_c.exists() {
-        for entry in walkdir::WalkDir::new(&drive_c).max_depth(6).into_iter().filter_map(|e| e.ok()) {
-            if entry.file_type().is_file() && entry.path().extension().and_then(|s| s.to_str()).map(|ext| ext.eq_ignore_ascii_case("exe")).unwrap_or(false) {
-                if let Ok(rel) = entry.path().strip_prefix(&drive_c) {
-                    let rel_str = format!("drive_c/{}", rel.to_string_lossy());
-                    if !exes.contains(&rel_str) {
-                        exes.push(rel_str);
+    let shared_drive_c = prefix_mgr::get_shared_runtime_dir().join("drive_c");
+    let search_roots = [drive_c, shared_drive_c];
+
+    for root_dir in search_roots {
+        if root_dir.exists() {
+            for entry in walkdir::WalkDir::new(&root_dir).follow_links(true).max_depth(6).into_iter().filter_map(|e| e.ok()) {
+                if entry.file_type().is_file() && entry.path().extension().and_then(|s| s.to_str()).map(|ext| ext.eq_ignore_ascii_case("exe")).unwrap_or(false) {
+                    let name = entry.path().file_name().map(|s| s.to_string_lossy().to_lowercase()).unwrap_or_default();
+                    if !name.starts_with("unins") && !name.contains("crash") {
+                        if let Ok(rel) = entry.path().strip_prefix(&root_dir) {
+                            let rel_str = format!("drive_c/{}", rel.to_string_lossy());
+                            if !exes.contains(&rel_str) {
+                                exes.push(rel_str);
+                            }
+                        }
                     }
                 }
             }
         }
     }
-
     Ok(exes)
 }
 
