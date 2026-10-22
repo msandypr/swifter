@@ -245,18 +245,22 @@ pub async fn open_in_finder(path: String) -> Result<(), String> {
 /// 8. Checks if a Wine translation runtime is installed on the system
 #[tauri::command]
 pub async fn check_runtime_status() -> Result<RuntimeStatus, String> {
-    // 1. Check Swifter internal bundled runtime
-    let swifter_wine = prefix_mgr::get_swifter_support_dir().join("runtimes/wine/bin/wine64");
-    if swifter_wine.exists() {
+    // 1. Check Swifter internal bundled runtime (both wine64 and wine)
+    let swifter_bin_dir = prefix_mgr::get_swifter_support_dir().join("runtimes/wine/bin");
+    if swifter_bin_dir.join("wine64").exists() || swifter_bin_dir.join("wine").exists() {
+        let bin_path = if swifter_bin_dir.join("wine64").exists() {
+            swifter_bin_dir.join("wine64")
+        } else {
+            swifter_bin_dir.join("wine")
+        };
         return Ok(RuntimeStatus {
             is_installed: true,
             runtime_name: Some("Swifter Internal Runtime".to_string()),
-            runtime_path: Some(swifter_wine.to_string_lossy().to_string()),
+            runtime_path: Some(bin_path.to_string_lossy().to_string()),
             has_dxvk: true,
             has_d3dmetal: true,
         });
     }
-
     // 2. Check Whisky runtime
     if let Some(app_support) = dirs::data_dir() {
         let whisky_wine = app_support.join("com.isaacmarovitz.Whisky/Libraries/Wine/bin/wine64");
@@ -459,9 +463,10 @@ pub async fn install_swifter_runtime(app: tauri::AppHandle) -> Result<String, St
         });
 
         let mut source_wine_dir = None;
-        for entry in walkdir::WalkDir::new(&stage_dir).max_depth(5).into_iter().filter_map(|e| e.ok()) {
-            if entry.file_type().is_dir() && entry.file_name() == "wine" {
-                if entry.path().join("bin/wine64").exists() {
+        for entry in walkdir::WalkDir::new(&stage_dir).into_iter().filter_map(|e| e.ok()) {
+            if entry.file_type().is_dir() {
+                let bin = entry.path().join("bin");
+                if bin.join("wine64").exists() || bin.join("wine").exists() {
                     source_wine_dir = Some(entry.path().to_path_buf());
                     break;
                 }
@@ -469,7 +474,7 @@ pub async fn install_swifter_runtime(app: tauri::AppHandle) -> Result<String, St
         }
 
         let source_dir = source_wine_dir
-            .ok_or_else(|| "Could not locate wine bin/wine64 inside extracted archive.".to_string())?;
+            .ok_or_else(|| "Could not locate wine binary (bin/wine or bin/wine64) inside extracted archive.".to_string())?;
 
         let _ = std::fs::remove_dir_all(&target_wine_dir);
         let _ = std::fs::create_dir_all(&target_wine_dir);
@@ -494,10 +499,20 @@ pub async fn install_swifter_runtime(app: tauri::AppHandle) -> Result<String, St
             return Err(err_msg);
         }
 
-        let wine64 = target_wine_dir.join("bin/wine64");
-        if wine64.exists() {
-            use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(&wine64, std::fs::Permissions::from_mode(0o755));
+        // Set executable permissions and guarantee wine64 symlink if only wine exists
+        let target_bin = target_wine_dir.join("bin");
+        let wine_bin = target_bin.join("wine");
+        let wine64_bin = target_bin.join("wine64");
+
+        use std::os::unix::fs::PermissionsExt;
+        if wine_bin.exists() {
+            let _ = std::fs::set_permissions(&wine_bin, std::fs::Permissions::from_mode(0o755));
+            if !wine64_bin.exists() {
+                let _ = std::os::unix::fs::symlink("wine", &wine64_bin);
+            }
+        }
+        if wine64_bin.exists() {
+            let _ = std::fs::set_permissions(&wine64_bin, std::fs::Permissions::from_mode(0o755));
         }
 
         let _ = std::fs::remove_dir_all(&stage_dir);
@@ -518,4 +533,15 @@ pub async fn install_swifter_runtime(app: tauri::AppHandle) -> Result<String, St
     })
     .await
     .map_err(|e| format!("Task execution error: {}", e))?
+}
+
+/// 10. Removes the Swifter internal Wine runtime folder
+#[tauri::command]
+pub async fn remove_swifter_runtime() -> Result<(), String> {
+    let wine_dir = prefix_mgr::get_swifter_support_dir().join("runtimes/wine");
+    if wine_dir.exists() {
+        std::fs::remove_dir_all(&wine_dir)
+            .map_err(|e| format!("Failed to remove runtime folder: {}", e))?;
+    }
+    Ok(())
 }

@@ -90,3 +90,7 @@ export async function checkRuntimeStatus(): Promise<RuntimeStatus> {
 export async function installSwifterRuntime(): Promise<string> {
   return await invoke<string>('install_swifter_runtime');
 }
+
+export async function removeSwifterRuntime(): Promise<void> {
+  await invoke('remove_swifter_runtime');
+}

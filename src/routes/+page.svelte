@@ -9,6 +9,7 @@
     openInFinder,
     checkRuntimeStatus,
     installSwifterRuntime,
+    removeSwifterRuntime,
     type SwifterInspection,
     type RuntimeStatus,
     type RuntimeDownloadProgress
@@ -17,6 +18,7 @@
   import GameInspector from '../components/GameInspector.svelte';
   import ProgressModal from '../components/ProgressModal.svelte';
   import Shelf from '../components/Shelf.svelte';
+  import Requirements from '../components/Requirements.svelte';
   import Guide from '../components/Guide.svelte';
   import About from '../components/About.svelte';
   import {
@@ -30,10 +32,11 @@
     Download,
     CheckCircle2,
     Cpu,
-    ArrowRight
+    Trash2,
+    ShieldAlert
   } from 'lucide-svelte';
 
-  type ActiveTab = 'packer' | 'shelf' | 'guide' | 'about';
+  type ActiveTab = 'packer' | 'shelf' | 'requirements' | 'guide' | 'about';
 
   let activeTab = $state<ActiveTab>('packer');
   let inspection = $state<SwifterInspection | null>(null);
@@ -49,6 +52,11 @@
   let runtimeInstallSuccess = $state(false);
   let runtimeInstallMsg = $state('');
   let runtimeProgress = $state<RuntimeDownloadProgress | null>(null);
+
+  // User confirmation dialog states
+  let isConfirmInstallOpen = $state(false);
+  let isConfirmRemoveOpen = $state(false);
+  let isRemovingRuntime = $state(false);
 
   // Progress modal state
   let isProgressModalOpen = $state(false);
@@ -98,7 +106,16 @@
     };
   });
 
-  async function handleInstallRuntime() {
+  function requestInstallRuntime() {
+    isConfirmInstallOpen = true;
+  }
+
+  function requestRemoveRuntime() {
+    isConfirmRemoveOpen = true;
+  }
+
+  async function confirmAndStartInstall() {
+    isConfirmInstallOpen = false;
     isInstallingRuntime = true;
     isRuntimeModalOpen = true;
     runtimeInstallSuccess = false;
@@ -122,6 +139,20 @@
       runtimeInstallSuccess = false;
     } finally {
       isInstallingRuntime = false;
+    }
+  }
+
+  async function confirmAndStartRemove() {
+    isConfirmRemoveOpen = false;
+    isRemovingRuntime = true;
+    errorMessage = '';
+    try {
+      await removeSwifterRuntime();
+      await refreshRuntimeStatus();
+    } catch (err: unknown) {
+      errorMessage = err instanceof Error ? err.message : String(err);
+    } finally {
+      isRemovingRuntime = false;
     }
   }
 
@@ -207,7 +238,7 @@
 <div class="flex-1 flex flex-col h-full overflow-hidden bg-[#111113] text-zinc-200">
   <!-- Segmented Navigation Header with Centered Navbar & Seamlessly Integrated Logo -->
   <div class="px-8 pt-4 pb-2 flex items-center justify-between shrink-0 relative">
-    <!-- Left spacer balancing right status widget -->
+    <!-- Left spacer balancing right widget -->
     <div class="w-36 hidden sm:block"></div>
 
     <!-- Centered Unified Navbar with Integrated Logo Pill -->
@@ -226,7 +257,7 @@
       <div class="flex items-center space-x-1">
         <button
           onclick={() => (activeTab = 'packer')}
-          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all {activeTab === 'packer' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'packer' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
         >
           <Package class="w-3.5 h-3.5 text-zinc-400" />
           Packer
@@ -234,15 +265,31 @@
 
         <button
           onclick={() => (activeTab = 'shelf')}
-          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all {activeTab === 'shelf' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'shelf' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
         >
           <Library class="w-3.5 h-3.5 text-zinc-400" />
           Shelf
         </button>
 
+        <!-- Requirements Tab with status dot -->
+        <button
+          onclick={() => (activeTab = 'requirements')}
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'requirements' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+        >
+          <Cpu class="w-3.5 h-3.5 text-zinc-400" />
+          <span>Requirements</span>
+          {#if runtimeStatus}
+            {#if runtimeStatus.is_installed}
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]"></span>
+            {:else}
+              <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.7)] animate-pulse"></span>
+            {/if}
+          {/if}
+        </button>
+
         <button
           onclick={() => (activeTab = 'guide')}
-          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all {activeTab === 'guide' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'guide' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
         >
           <BookOpen class="w-3.5 h-3.5 text-zinc-400" />
           Guide
@@ -250,7 +297,7 @@
 
         <button
           onclick={() => (activeTab = 'about')}
-          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all {activeTab === 'about' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'about' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
         >
           <Info class="w-3.5 h-3.5 text-zinc-400" />
           About
@@ -258,7 +305,7 @@
       </div>
     </div>
 
-    <!-- Right Header: Runtime Status -->
+    <!-- Right Header Status Indicator -->
     <div class="w-36 flex justify-end items-center">
       {#if runtimeStatus}
         {#if runtimeStatus.is_installed}
@@ -268,7 +315,7 @@
           </div>
         {:else}
           <button
-            onclick={handleInstallRuntime}
+            onclick={requestInstallRuntime}
             class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-[10px] text-zinc-300 transition-all active:scale-95"
           >
             <Download class="w-3 h-3 text-zinc-400" />
@@ -289,17 +336,17 @@
 
       <div class="flex items-center gap-2 shrink-0">
         <button
-          onclick={handleInstallRuntime}
+          onclick={requestInstallRuntime}
           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs active:scale-95 transition-all shadow-sm"
         >
           <Download class="w-3.5 h-3.5" />
           Download Runtime
         </button>
         <button
-          onclick={() => (activeTab = 'guide')}
+          onclick={() => (activeTab = 'requirements')}
           class="px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs border border-zinc-700 transition-all"
         >
-          Guide
+          Details
         </button>
       </div>
     </div>
@@ -318,8 +365,8 @@
     </div>
   {/if}
 
-  <!-- Tab Content Views -->
-  <div class="flex-1 overflow-hidden relative flex flex-col items-center justify-center">
+  <!-- Tab Content Views with Smooth Fade Transitions -->
+  <div class="flex-1 overflow-hidden relative flex flex-col items-center justify-center transition-opacity duration-200">
     {#if activeTab === 'packer'}
       {#if !inspection}
         <Dropzone onSelectPath={handleInspectPath} {isAnalyzing} />
@@ -335,12 +382,107 @@
       {/if}
     {:else if activeTab === 'shelf'}
       <Shelf onNavigatePacker={() => (activeTab = 'packer')} />
+    {:else if activeTab === 'requirements'}
+      <Requirements
+        {runtimeStatus}
+        onInstallRequest={requestInstallRuntime}
+        onRemoveRequest={requestRemoveRuntime}
+        onRefresh={refreshRuntimeStatus}
+      />
     {:else if activeTab === 'guide'}
       <Guide />
     {:else if activeTab === 'about'}
       <About />
     {/if}
   </div>
+
+  <!-- User Agreement Confirmation Modal: Install Runtime -->
+  {#if isConfirmInstallOpen}
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+      <div class="w-full max-w-md glass-panel rounded-2xl p-6 shadow-2xl border border-zinc-800 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex items-start gap-3.5">
+          <div class="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-200 shrink-0">
+            <Download class="w-5 h-5 text-zinc-300" />
+          </div>
+          <div class="space-y-1">
+            <h3 class="text-sm font-semibold text-zinc-100">Install Wine Translation Runtime</h3>
+            <p class="text-xs text-zinc-400 leading-relaxed">
+              Swifter will download and configure the official portable Wine runtime for macOS (~182 MB from GitHub releases).
+            </p>
+          </div>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 text-xs space-y-2 text-zinc-300">
+          <div class="flex justify-between text-[11px]">
+            <span class="text-zinc-500">Download Size:</span>
+            <span class="font-mono text-zinc-200">~182.1 MB</span>
+          </div>
+          <div class="flex justify-between text-[11px]">
+            <span class="text-zinc-500">Install Location:</span>
+            <span class="font-mono text-zinc-300 truncate max-w-[200px]" title="~/Library/Application Support/Swifter/runtimes/wine">~/Library/Application Support/Swifter/...</span>
+          </div>
+          <div class="flex justify-between text-[11px]">
+            <span class="text-zinc-500">License:</span>
+            <span class="text-zinc-300">LGPL v2.1+ (Open Source)</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button
+            onclick={confirmAndStartInstall}
+            class="flex-1 py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold active:scale-95 transition-all shadow-sm"
+          >
+            Confirm & Download
+          </button>
+          <button
+            onclick={() => (isConfirmInstallOpen = false)}
+            class="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-all"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- User Agreement Confirmation Modal: Remove Runtime -->
+  {#if isConfirmRemoveOpen}
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+      <div class="w-full max-w-md glass-panel rounded-2xl p-6 shadow-2xl border border-zinc-800 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex items-start gap-3.5">
+          <div class="w-10 h-10 rounded-xl bg-zinc-800 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+            <Trash2 class="w-5 h-5" />
+          </div>
+          <div class="space-y-1">
+            <h3 class="text-sm font-semibold text-zinc-100">Remove Swifter Wine Runtime</h3>
+            <p class="text-xs text-zinc-400 leading-relaxed">
+              Are you sure you want to delete the internal Wine runtime from your Mac?
+            </p>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800 text-xs text-zinc-400 leading-relaxed">
+          Packaged games will not be able to launch unless an alternative runtime (such as Homebrew Wine or Whisky) is installed.
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button
+            onclick={confirmAndStartRemove}
+            disabled={isRemovingRuntime}
+            class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold active:scale-95 transition-all shadow-sm"
+          >
+            {isRemovingRuntime ? 'Removing...' : 'Yes, Delete Runtime'}
+          </button>
+          <button
+            onclick={() => (isConfirmRemoveOpen = false)}
+            class="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-all"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 
   <!-- Runtime Downloader Modal with Real-Time Progress -->
   {#if isRuntimeModalOpen}
@@ -440,7 +582,7 @@
             onclick={() => (isRuntimeModalOpen = false)}
             class="w-full py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold active:scale-95 transition-all shadow-sm"
           >
-            Start Packaging Games
+            Done
           </button>
         {:else}
           <!-- Error State -->
@@ -456,7 +598,7 @@
           </div>
           <div class="flex items-center gap-2">
             <button
-              onclick={handleInstallRuntime}
+              onclick={confirmAndStartInstall}
               class="flex-1 py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold transition-all shadow-sm"
             >
               Retry Download
