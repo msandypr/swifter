@@ -17,6 +17,7 @@
   - **DXVK:** DirectX 9, 10, and 11 translation via MoltenVK (Vulkan). Recommended for 3D indie titles.
   - **Apple D3DMetal:** DirectX 11 and 12 translation via Apple Game Porting Toolkit 2.
   - **Vanilla Wine:** Direct translation for 2D software and lightweight utilities.
+- **One-Click In-App Runtime Downloader:** Automatically checks whether a Wine runtime is installed on the user's Mac and provides a one-click automated download & setup of a pre-built portable Wine runtime into Swifter's shared directory.
 - **Save Data Management:** One-click access to game save files in `AppData` directly from the **Shelf** tab.
 - **Clean Monochrome Interface:** Minimalist dark neutral gray macOS design with zero distracting color gradients.
 

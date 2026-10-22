@@ -31,6 +31,14 @@ export interface InstalledAppInfo {
   icon_path?: string | null;
 }
 
+export interface RuntimeStatus {
+  is_installed: boolean;
+  runtime_name?: string | null;
+  runtime_path?: string | null;
+  has_dxvk: boolean;
+  has_d3dmetal: boolean;
+}
+
 export async function inspectTarget(droppedPath: string): Promise<SwifterInspection> {
   return await invoke<SwifterInspection>('inspect_target', { droppedPath });
 }
@@ -64,4 +72,12 @@ export async function launchInstalledApp(bundlePath: string): Promise<void> {
 
 export async function openInFinder(path: string): Promise<void> {
   await invoke('open_in_finder', { path });
+}
+
+export async function checkRuntimeStatus(): Promise<RuntimeStatus> {
+  return await invoke<RuntimeStatus>('check_runtime_status');
+}
+
+export async function installSwifterRuntime(): Promise<string> {
+  return await invoke<string>('install_swifter_runtime');
 }
