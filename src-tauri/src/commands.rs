@@ -532,3 +532,121 @@ pub async fn remove_swifter_runtime() -> Result<(), String> {
     }
     Ok(())
 }
+
+/// 11. Executes a setup/installer wizard inside the isolated micro-prefix and scans for newly installed game binaries
+#[tauri::command]
+pub async fn run_installer_in_prefix(exe_path: String, app_slug: String) -> Result<Vec<String>, String> {
+    tokio::task::spawn_blocking(move || {
+        let prefix_dir = prefix_mgr::ensure_micro_prefix(&app_slug)?;
+        let wine_bin = resolve_wine_binary()?;
+
+        let exe_path_buf = PathBuf::from(&exe_path);
+        let parent_dir = exe_path_buf.parent().unwrap_or_else(|| Path::new("."));
+
+        let mut cmd = Command::new(&wine_bin);
+        cmd.arg(&exe_path_buf)
+            .current_dir(parent_dir)
+            .env("WINEPREFIX", &prefix_dir)
+            .env("WINEARCH", "win64")
+            .env("MESA_LOADER_DRIVER_OVERRIDE", "zink")
+            .env("GALLIUM_DRIVER", "zink")
+            .env("MESA_GL_VERSION_OVERRIDE", "4.6")
+            .env("MESA_GLSL_VERSION_OVERRIDE", "460");
+
+        let status = cmd.status().map_err(|e| format!("Failed to spawn installer: {}", e))?;
+        if !status.success() {
+            return Err(format!("Installer process exited with code: {:?}", status.code()));
+        }
+
+        // Scan drive_c inside the micro-prefix for all newly installed .exe files
+        let mut installed_exes = Vec::new();
+        let drive_c = prefix_dir.join("drive_c");
+        if drive_c.exists() {
+            for entry in walkdir::WalkDir::new(&drive_c).max_depth(6).into_iter().filter_map(|e| e.ok()) {
+                if entry.file_type().is_file() {
+                    let p = entry.path();
+                    if p.extension().and_then(|s| s.to_str()).map(|ext| ext.eq_ignore_ascii_case("exe")).unwrap_or(false) {
+                        let name = p.file_name().map(|s| s.to_string_lossy().to_lowercase()).unwrap_or_default();
+                        if !name.starts_with("unins") && !name.contains("setup") && !name.contains("install") && !name.contains("crash") {
+                            if let Ok(rel) = p.strip_prefix(&drive_c) {
+                                installed_exes.push(format!("drive_c/{}", rel.to_string_lossy()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(installed_exes)
+    })
+    .await
+    .map_err(|e| format!("Task execution error: {}", e))?
+}
+
+/// 12. Scans a packaged app bundle and its prefix to list all executable (.exe) candidates
+#[tauri::command]
+pub async fn scan_available_exes_in_app(bundle_path: String) -> Result<Vec<String>, String> {
+    let bundle = PathBuf::from(&bundle_path);
+    let config_path = bundle.join("Contents/Resources/swifter.config.json");
+    if !config_path.exists() {
+        return Err("Configuration file not found in application bundle.".into());
+    }
+
+    let content = std::fs::read_to_string(&config_path).map_err(|e| e.to_string())?;
+    let cfg: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    let app_slug = cfg["app_slug"].as_str().unwrap_or("app");
+
+    let mut exes = Vec::new();
+
+    // 1. Scan payload directory
+    let payload_dir = bundle.join("Contents/Resources/game_payload");
+    if payload_dir.exists() {
+        for entry in walkdir::WalkDir::new(&payload_dir).max_depth(4).into_iter().filter_map(|e| e.ok()) {
+            if entry.file_type().is_file() && entry.path().extension().and_then(|s| s.to_str()).map(|ext| ext.eq_ignore_ascii_case("exe")).unwrap_or(false) {
+                if let Ok(rel) = entry.path().strip_prefix(&payload_dir) {
+                    exes.push(rel.to_string_lossy().to_string());
+                }
+            }
+        }
+    }
+
+    // 2. Scan prefix drive_c
+    let prefix_dir = prefix_mgr::get_prefix_dir(app_slug);
+    let drive_c = prefix_dir.join("drive_c");
+    if drive_c.exists() {
+        for entry in walkdir::WalkDir::new(&drive_c).max_depth(6).into_iter().filter_map(|e| e.ok()) {
+            if entry.file_type().is_file() && entry.path().extension().and_then(|s| s.to_str()).map(|ext| ext.eq_ignore_ascii_case("exe")).unwrap_or(false) {
+                if let Ok(rel) = entry.path().strip_prefix(&drive_c) {
+                    let rel_str = format!("drive_c/{}", rel.to_string_lossy());
+                    if !exes.contains(&rel_str) {
+                        exes.push(rel_str);
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(exes)
+}
+
+/// 13. Updates the target executable of an already packaged application bundle
+#[tauri::command]
+pub async fn update_app_target_exe(bundle_path: String, new_target_exe: String) -> Result<(), String> {
+    let bundle = PathBuf::from(&bundle_path);
+    let config_path = bundle.join("Contents/Resources/swifter.config.json");
+    if !config_path.exists() {
+        return Err("Configuration file not found in bundle".to_string());
+    }
+
+    let content = std::fs::read_to_string(&config_path)
+        .map_err(|e| format!("Failed to read config: {}", e))?;
+    let mut cfg: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse config: {}", e))?;
+
+    cfg["target_exe_relative"] = serde_json::Value::String(new_target_exe);
+
+    std::fs::write(&config_path, serde_json::to_string_pretty(&cfg).unwrap())
+        .map_err(|e| format!("Failed to write updated config: {}", e))?;
+
+    Ok(())
+}

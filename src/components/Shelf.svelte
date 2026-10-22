@@ -5,6 +5,8 @@
     launchInstalledApp,
     revealSaveFolder,
     openInFinder,
+    scanAvailableExesInApp,
+    updateAppTargetExe,
     type InstalledAppInfo
   } from '$lib/tauri-bridge';
   import {
@@ -13,7 +15,10 @@
     FolderArchive,
     FolderOpen,
     RefreshCw,
-    PackagePlus
+    PackagePlus,
+    FileCode,
+    Check,
+    X
   } from 'lucide-svelte';
 
   let { onNavigatePacker }: { onNavigatePacker: () => void } = $props();
@@ -21,6 +26,14 @@
   let apps = $state<InstalledAppInfo[]>([]);
   let isLoading = $state(true);
   let errorMsg = $state('');
+
+  // Target executable switcher modal states
+  let isExeModalOpen = $state(false);
+  let selectedAppForExe = $state<InstalledAppInfo | null>(null);
+  let availableExes = $state<string[]>([]);
+  let isScanningExes = $state(false);
+  let chosenExe = $state('');
+  let updateStatusMsg = $state('');
 
   async function loadApps() {
     isLoading = true;
@@ -31,6 +44,42 @@
       errorMsg = err instanceof Error ? err.message : String(err);
     } finally {
       isLoading = false;
+    }
+  }
+
+  async function handleOpenExeModal(app: InstalledAppInfo) {
+    selectedAppForExe = app;
+    isExeModalOpen = true;
+    isScanningExes = true;
+    updateStatusMsg = '';
+    availableExes = [];
+    chosenExe = '';
+
+    try {
+      const exes = await scanAvailableExesInApp(app.bundle_path);
+      availableExes = exes;
+      if (exes.length > 0) {
+        chosenExe = exes[0];
+      }
+    } catch (err: unknown) {
+      updateStatusMsg = err instanceof Error ? err.message : String(err);
+    } finally {
+      isScanningExes = false;
+    }
+  }
+
+  async function handleSaveTargetExe() {
+    if (!selectedAppForExe || !chosenExe) return;
+
+    try {
+      await updateAppTargetExe(selectedAppForExe.bundle_path, chosenExe);
+      updateStatusMsg = 'Target executable updated successfully!';
+      setTimeout(() => {
+        isExeModalOpen = false;
+        loadApps();
+      }, 700);
+    } catch (err: unknown) {
+      updateStatusMsg = err instanceof Error ? err.message : String(err);
     }
   }
 
@@ -128,6 +177,16 @@
               Launch
             </button>
 
+            <!-- Change Executable Target Button (Useful for installer setups) -->
+            <button
+              onclick={() => handleOpenExeModal(app)}
+              title="Change target executable (.exe)"
+              class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-xs font-medium text-zinc-300 border border-zinc-700 transition-all"
+            >
+              <FileCode class="w-3.5 h-3.5 text-zinc-400" />
+              <span>.exe</span>
+            </button>
+
             <button
               onclick={() => revealSaveFolder(app.slug)}
               title="Open AppData save folder"
@@ -147,6 +206,82 @@
           </div>
         </div>
       {/each}
+    </div>
+  {/if}
+
+  <!-- Change Target Executable Modal -->
+  {#if isExeModalOpen && selectedAppForExe}
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+      <div class="w-full max-w-md glass-panel rounded-2xl p-6 shadow-2xl border border-zinc-800 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 shrink-0">
+              <FileCode class="w-4 h-4" />
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-zinc-100">Select Launch Executable</h3>
+              <p class="text-xs text-zinc-400">{selectedAppForExe.name}</p>
+            </div>
+          </div>
+
+          <button onclick={() => (isExeModalOpen = false)} class="p-1 text-zinc-400 hover:text-zinc-200 rounded hover:bg-zinc-800">
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+
+        <p class="text-xs text-zinc-400 leading-relaxed">
+          If your game ran an installer or contains multiple binaries, select which executable should be launched:
+        </p>
+
+        {#if isScanningExes}
+          <div class="flex items-center justify-center p-6 space-y-2 text-zinc-400">
+            <div class="w-5 h-5 border-2 border-zinc-300 border-t-transparent rounded-full animate-spin"></div>
+            <span class="text-xs ml-2">Scanning payload and prefix...</span>
+          </div>
+        {:else if availableExes.length > 0}
+          <div class="space-y-2 max-h-48 overflow-y-auto">
+            {#each availableExes as exe}
+              <label class="flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all {chosenExe === exe ? 'border-zinc-300 bg-zinc-800 text-zinc-100' : 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:border-zinc-700'}">
+                <span class="font-mono text-xs truncate max-w-[280px]" title={exe}>{exe}</span>
+                <input type="radio" name="targetExe" value={exe} bind:group={chosenExe} class="sr-only" />
+                {#if chosenExe === exe}
+                  <Check class="w-4 h-4 text-zinc-100 shrink-0" />
+                {/if}
+              </label>
+            {/each}
+          </div>
+        {:else}
+          <div class="p-3 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-zinc-400">
+            No additional executables found. You can enter a relative path manually:
+            <input
+              type="text"
+              bind:value={chosenExe}
+              placeholder="e.g. drive_c/Program Files/.../game.exe"
+              class="w-full mt-2 px-3 py-1.5 rounded-lg glass-input text-xs font-mono"
+            />
+          </div>
+        {/if}
+
+        {#if updateStatusMsg}
+          <div class="text-xs font-mono text-zinc-300 px-1">{updateStatusMsg}</div>
+        {/if}
+
+        <div class="flex items-center gap-2 pt-2">
+          <button
+            onclick={handleSaveTargetExe}
+            disabled={!chosenExe}
+            class="flex-1 py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold active:scale-95 disabled:opacity-50 transition-all shadow-sm"
+          >
+            Save Launch Target
+          </button>
+          <button
+            onclick={() => (isExeModalOpen = false)}
+            class="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-all"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   {/if}
 </div>

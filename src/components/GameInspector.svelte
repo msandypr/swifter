@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { SwifterInspection } from '$lib/tauri-bridge';
+  import { runInstallerInPrefix, type SwifterInspection } from '$lib/tauri-bridge';
   import {
     Cpu,
     Gamepad2,
@@ -9,7 +9,10 @@
     ArrowLeft,
     Check,
     HardDrive,
-    Layers
+    Layers,
+    Play,
+    FileCode,
+    AlertTriangle
   } from 'lucide-svelte';
 
   let {
@@ -23,6 +26,7 @@
     inspection: SwifterInspection;
     onPack: (options: {
       appName: string;
+      targetExe?: string;
       backend: string;
       enableMsync: boolean;
       copyFiles: boolean;
@@ -38,14 +42,56 @@
   let enableMsync = $state(true);
   let copyFiles = $state(false);
 
+  // Target executable and installer states
+  let selectedTargetExe = $state('');
+  let isRunningInstaller = $state(false);
+  let installerDiscoveredExes = $state<string[]>([]);
+  let installerMessage = $state('');
+
   $effect(() => {
     appName = inspection.app_display_name;
     selectedBackend = inspection.recommended_backend;
+    selectedTargetExe = inspection.target_exe_name;
   });
+
+  // Combine original candidates and post-installer discoveries
+  const allExeOptions = $derived(() => {
+    const set = new Set<string>();
+    if (selectedTargetExe) set.add(selectedTargetExe);
+    set.add(inspection.target_exe_name);
+    for (const c of inspection.exe_candidates) {
+      set.add(c);
+    }
+    for (const d of installerDiscoveredExes) {
+      set.add(d);
+    }
+    return Array.from(set);
+  });
+
+  async function handleRunInstaller() {
+    isRunningInstaller = true;
+    installerMessage = 'Installer wizard running in Wine... Please complete the installation steps.';
+    try {
+      const slug = (appName.trim() || inspection.app_display_name).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const discovered = await runInstallerInPrefix(inspection.target_exe_path, slug);
+      installerDiscoveredExes = discovered;
+      if (discovered.length > 0) {
+        selectedTargetExe = discovered[0];
+        installerMessage = `Found ${discovered.length} installed game binary(ies)! Selected: ${discovered[0]}`;
+      } else {
+        installerMessage = 'Installer completed. You can verify the executable target below.';
+      }
+    } catch (err: unknown) {
+      installerMessage = err instanceof Error ? err.message : String(err);
+    } finally {
+      isRunningInstaller = false;
+    }
+  }
 
   function handleStartPackaging() {
     onPack({
       appName: appName.trim() || inspection.app_display_name,
+      targetExe: selectedTargetExe || inspection.target_exe_name,
       backend: selectedBackend,
       enableMsync,
       copyFiles,
@@ -79,6 +125,43 @@
       </span>
     </div>
   </div>
+
+  <!-- Installer / Setup Wizard Banner -->
+  {#if inspection.is_installer}
+    <div class="rounded-2xl p-4 bg-zinc-900 border border-amber-500/30 flex flex-col space-y-3">
+      <div class="flex items-start gap-3 text-amber-200 text-xs">
+        <AlertTriangle class="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+        <div class="space-y-1">
+          <div class="font-semibold text-amber-300">Setup Wizard / Installer Executable Detected</div>
+          <p class="text-zinc-400 text-[11px] leading-relaxed">
+            This executable is an installer. To package the actual game, run the setup wizard first so it installs into the isolated prefix, or select the installed game executable below.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2 pt-1">
+        <button
+          onclick={handleRunInstaller}
+          disabled={isRunningInstaller}
+          class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs active:scale-95 transition-all shadow-sm disabled:opacity-50"
+        >
+          {#if isRunningInstaller}
+            <div class="w-3.5 h-3.5 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin"></div>
+            <span>Running Installer...</span>
+          {:else}
+            <Play class="w-3.5 h-3.5" />
+            <span>Run Setup Wizard in Micro-Prefix</span>
+          {/if}
+        </button>
+
+        {#if installerMessage}
+          <span class="text-[11px] text-zinc-300 font-mono px-2 py-1 rounded bg-zinc-950 border border-zinc-800">
+            {installerMessage}
+          </span>
+        {/if}
+      </div>
+    </div>
+  {/if}
 
   <!-- Anti-Cheat Warning Banner -->
   {#if inspection.is_anticheat_blocked}
@@ -125,18 +208,37 @@
         />
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-zinc-400">
-        <div class="space-y-1">
-          <span class="font-semibold text-zinc-500">Target Executable:</span>
-          <div class="font-mono text-zinc-300 truncate" title={inspection.target_exe_name}>
-            {inspection.target_exe_name}
+      <!-- Target Executable Selector / Dropdown -->
+      <div>
+        <label for="target-exe-select" class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">
+          Executable to Launch
+        </label>
+        {#if allExeOptions().length > 1}
+          <div class="relative">
+            <select
+              id="target-exe-select"
+              bind:value={selectedTargetExe}
+              class="w-full px-4 py-2 rounded-xl glass-input text-xs font-mono text-zinc-200 border border-zinc-800 bg-zinc-950/80 cursor-pointer"
+            >
+              {#each allExeOptions() as opt}
+                <option value={opt} class="bg-zinc-900 text-zinc-200">{opt}</option>
+              {/each}
+            </select>
           </div>
-        </div>
-        <div class="space-y-1">
-          <span class="font-semibold text-zinc-500">Game Root:</span>
-          <div class="font-mono text-zinc-300 truncate" title={inspection.game_folder_path}>
-            {inspection.game_folder_path}
-          </div>
+        {:else}
+          <input
+            id="target-exe-select"
+            type="text"
+            bind:value={selectedTargetExe}
+            class="w-full px-4 py-2 rounded-xl glass-input text-xs font-mono text-zinc-200 border border-zinc-800 bg-zinc-950/80"
+          />
+        {/if}
+      </div>
+
+      <div class="text-xs text-zinc-400 space-y-1">
+        <span class="font-semibold text-zinc-500">Game Root:</span>
+        <div class="font-mono text-zinc-300 truncate text-[11px]" title={inspection.game_folder_path}>
+          {inspection.game_folder_path}
         </div>
       </div>
     </div>
@@ -161,7 +263,7 @@
       <label class="cursor-pointer relative flex flex-col p-4 rounded-xl border transition-all {selectedBackend === 'DXVK' ? 'border-zinc-300 bg-zinc-800 text-zinc-100' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/30 text-zinc-400'}">
         <input type="radio" name="backend" value="DXVK" bind:group={selectedBackend} class="sr-only" />
         <span class="font-semibold text-sm text-zinc-200">DXVK</span>
-        <span class="text-xs text-zinc-400 mt-1">DirectX 9–11 via MoltenVK. Best for 3D indie games.</span>
+        <span class="text-xs text-zinc-400 mt-1">DirectX 9–11 via MoltenVK. Best for 3D indie titles.</span>
         {#if inspection.recommended_backend === 'DXVK'}
           <span class="absolute top-2.5 right-2.5 px-1.5 py-0.5 text-[9px] rounded font-bold uppercase bg-zinc-700 text-zinc-200 border border-zinc-600">Recommended</span>
         {/if}
@@ -181,7 +283,7 @@
       <label class="cursor-pointer relative flex flex-col p-4 rounded-xl border transition-all {selectedBackend === 'Vanilla' ? 'border-zinc-300 bg-zinc-800 text-zinc-100' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/30 text-zinc-400'}">
         <input type="radio" name="backend" value="Vanilla" bind:group={selectedBackend} class="sr-only" />
         <span class="font-semibold text-sm text-zinc-200">Vanilla Wine</span>
-        <span class="text-xs text-zinc-400 mt-1">Standard built-in Wine engine. Ideal for 2D software.</span>
+        <span class="text-xs text-zinc-400 mt-1">Built-in Wine translation + OpenGL Zink.</span>
         {#if inspection.recommended_backend === 'Vanilla'}
           <span class="absolute top-2.5 right-2.5 px-1.5 py-0.5 text-[9px] rounded font-bold uppercase bg-zinc-700 text-zinc-200 border border-zinc-600">Recommended</span>
         {/if}

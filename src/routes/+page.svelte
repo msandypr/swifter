@@ -172,6 +172,7 @@
 
   async function handlePack(options: {
     appName: string;
+    targetExe?: string;
     backend: string;
     enableMsync: boolean;
     copyFiles: boolean;
@@ -198,7 +199,7 @@
       currentProgressStep = 4;
       const bundle = await packToApp({
         game_folder_path: inspection.game_folder_path,
-        target_exe_name: inspection.target_exe_name,
+        target_exe_name: options.targetExe || inspection.target_exe_name,
         app_name: options.appName,
         backend_choice: options.backend,
         enable_msync: options.enableMsync,

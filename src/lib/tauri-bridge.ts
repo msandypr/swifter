@@ -12,6 +12,7 @@ export interface SwifterInspection {
   anticheat_reason?: string | null;
   icon_cached_path?: string | null;
   exe_candidates: string[];
+  is_installer: boolean;
 }
 
 export interface PackOptions {
@@ -93,4 +94,16 @@ export async function installSwifterRuntime(): Promise<string> {
 
 export async function removeSwifterRuntime(): Promise<void> {
   await invoke('remove_swifter_runtime');
+}
+
+export async function runInstallerInPrefix(exePath: string, appSlug: string): Promise<string[]> {
+  return await invoke<string[]>('run_installer_in_prefix', { exePath, appSlug });
+}
+
+export async function scanAvailableExesInApp(bundlePath: string): Promise<string[]> {
+  return await invoke<string[]>('scan_available_exes_in_app', { bundlePath });
+}
+
+export async function updateAppTargetExe(bundlePath: string, newTargetExe: string): Promise<void> {
+  await invoke('update_app_target_exe', { bundlePath, newTargetExe });
 }

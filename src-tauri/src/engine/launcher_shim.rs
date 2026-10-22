@@ -131,15 +131,25 @@ fi
 
     // Launch execution
     script.push_str(r#"
-# Change working directory to payload root
-cd "$PAYLOAD_DIR"
+# Resolve executable path (checks game payload, prefix root, or prefix drive_c)
+TARGET_EXE=""
+if [ -f "$PAYLOAD_DIR/$EXE_REL" ]; then
+    TARGET_EXE="$PAYLOAD_DIR/$EXE_REL"
+elif [ -f "$WINEPREFIX/$EXE_REL" ]; then
+    TARGET_EXE="$WINEPREFIX/$EXE_REL"
+elif [ -f "$WINEPREFIX/drive_c/$EXE_REL" ]; then
+    TARGET_EXE="$WINEPREFIX/drive_c/$EXE_REL"
+elif [ -f "$EXE_REL" ]; then
+    TARGET_EXE="$EXE_REL"
+fi
 
-TARGET_EXE="$PAYLOAD_DIR/$EXE_REL"
-
-if [ ! -f "$TARGET_EXE" ]; then
-    osascript -e "display alert \"Game Executable Missing\" message \"Could not find executable at: $TARGET_EXE\" as critical"
+if [ -z "$TARGET_EXE" ] || [ ! -f "$TARGET_EXE" ]; then
+    osascript -e "display alert \"Game Executable Missing\" message \"Could not find executable: $EXE_REL\nSearched in payload and prefix.\" as critical"
     exit 1
 fi
+
+# Set working directory to executable folder so assets load relatively
+cd "$(dirname "$TARGET_EXE")"
 
 exec "$WINE_BIN" "$TARGET_EXE" "$@"
 "#);

@@ -17,6 +17,7 @@ pub struct SwifterInspection {
     pub anticheat_reason: Option<String>,
     pub icon_cached_path: Option<String>,
     pub exe_candidates: Vec<String>,
+    pub is_installer: bool,
 }
 
 /// Comprehensive inspection function for a dropped file or folder
@@ -45,7 +46,8 @@ pub fn inspect_target_path(dropped_path_str: &str) -> Result<SwifterInspection, 
 
     let app_display_name = pe_meta
         .product_name
-        .or(pe_meta.file_description)
+        .clone()
+        .or_else(|| pe_meta.file_description.clone())
         .unwrap_or(raw_stem);
 
     let target_exe_name = scan
@@ -67,6 +69,28 @@ pub fn inspect_target_path(dropped_path_str: &str) -> Result<SwifterInspection, 
 
     let detected_engine_str = scan.engine.as_str().to_string();
     let recommended_backend = scan.engine.default_recommended_backend().to_string();
+    let is_installer = {
+        let lower_name = scan
+            .target_exe
+            .file_name()
+            .map(|s| s.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+        let name_match = lower_name.starts_with("setup")
+            || lower_name.starts_with("install")
+            || lower_name.contains("installer")
+            || lower_name.contains("setup");
+        let meta_match = pe_meta
+            .file_description
+            .as_ref()
+            .map(|d| d.to_lowercase().contains("setup") || d.to_lowercase().contains("installer"))
+            .unwrap_or(false)
+            || pe_meta
+                .product_name
+                .as_ref()
+                .map(|p| p.to_lowercase().contains("setup") || p.to_lowercase().contains("installer"))
+                .unwrap_or(false);
+        name_match || meta_match
+    };
 
     Ok(SwifterInspection {
         target_exe_path: scan.target_exe.to_string_lossy().to_string(),
@@ -80,5 +104,6 @@ pub fn inspect_target_path(dropped_path_str: &str) -> Result<SwifterInspection, 
         anticheat_reason,
         icon_cached_path,
         exe_candidates: candidates,
+        is_installer,
     })
 }

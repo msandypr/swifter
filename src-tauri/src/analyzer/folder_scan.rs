@@ -175,6 +175,22 @@ pub fn find_exe_candidates(folder: &Path) -> Vec<PathBuf> {
             }
         }
     }
+    if candidates.is_empty() {
+        // Fallback: look for setup / installer executables if no main binary was found
+        for entry in WalkDir::new(folder).max_depth(3).into_iter().filter_map(|e| e.ok()) {
+            if entry.file_type().is_file() {
+                let path = entry.path();
+                if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                    if ext.eq_ignore_ascii_case("exe") {
+                        let file_name = path.file_name().map(|s| s.to_string_lossy().to_lowercase()).unwrap_or_default();
+                        if !file_name.starts_with("unins") && !file_name.contains("crash") {
+                            candidates.push(path.to_path_buf());
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // Sort candidates: root-level files first, then by depth, then alphabetically
     candidates.sort_by_key(|p| {

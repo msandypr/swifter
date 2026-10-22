@@ -19,6 +19,9 @@ pub fn run() {
             commands::check_runtime_status,
             commands::install_swifter_runtime,
             commands::remove_swifter_runtime,
+            commands::run_installer_in_prefix,
+            commands::scan_available_exes_in_app,
+            commands::update_app_target_exe,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Swifter application");
