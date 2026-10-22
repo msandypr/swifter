@@ -87,14 +87,22 @@ pub fn ensure_micro_prefix(app_slug: &str) -> Result<PathBuf, String> {
 
     let user_reg = prefix_dir.join("user.reg");
     if !user_reg.exists() {
-        let minimal_user_reg = "WINE REGISTRY Version 2\n;; All keys relative to \\\\User\n\n";
+        let minimal_user_reg = "WINE REGISTRY Version 2\n;; All keys relative to \\\\User\n\n#arch=win64\n\n[Software\\\\Wine\\\\Direct3D]\n\"MaxVersionGL\"=dword:00040006\n\n";
         let _ = fs::write(&user_reg, minimal_user_reg);
+    } else if let Ok(c) = fs::read_to_string(&user_reg) {
+        if c.contains("#arch=win32") {
+            let _ = fs::write(&user_reg, c.replace("#arch=win32", "#arch=win64"));
+        }
     }
 
     let userdef_reg = prefix_dir.join("userdef.reg");
     if !userdef_reg.exists() {
-        let minimal_userdef_reg = "WINE REGISTRY Version 2\n;; All keys relative to \\\\UserDef\n\n";
+        let minimal_userdef_reg = "WINE REGISTRY Version 2\n;; All keys relative to \\\\UserDef\n\n#arch=win64\n\n";
         let _ = fs::write(&userdef_reg, minimal_userdef_reg);
+    } else if let Ok(c) = fs::read_to_string(&userdef_reg) {
+        if c.contains("#arch=win32") {
+            let _ = fs::write(&userdef_reg, c.replace("#arch=win32", "#arch=win64"));
+        }
     }
 
     Ok(prefix_dir)
@@ -118,10 +126,13 @@ fn ensure_shared_base_skeleton(shared_runtime: &Path) -> Result<(), String> {
 
     let system_reg = shared_runtime.join("system.reg");
     if !system_reg.exists() {
-        let minimal_system_reg = "WINE REGISTRY Version 2\n;; All keys relative to \\\\System\n\n";
+        let minimal_system_reg = "WINE REGISTRY Version 2\n;; All keys relative to \\\\System\n\n#arch=win64\n\n";
         let _ = fs::write(&system_reg, minimal_system_reg);
+    } else if let Ok(c) = fs::read_to_string(&system_reg) {
+        if c.contains("#arch=win32") {
+            let _ = fs::write(&system_reg, c.replace("#arch=win32", "#arch=win64"));
+        }
     }
-
     Ok(())
 }
 

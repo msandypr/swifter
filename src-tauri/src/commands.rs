@@ -79,6 +79,58 @@ pub async fn pack_to_app(
     Ok(bundle_path.to_string_lossy().to_string())
 }
 
+/// Finds the Wine binary across Swifter internal, Whisky, Homebrew, CrossOver, and PATH
+pub fn resolve_wine_binary() -> Result<String, String> {
+    // 1. Swifter internal runtime
+    let swifter_bin_dir = prefix_mgr::get_swifter_support_dir().join("runtimes/wine/bin");
+    if swifter_bin_dir.join("wine64").exists() {
+        return Ok(swifter_bin_dir.join("wine64").to_string_lossy().to_string());
+    }
+    if swifter_bin_dir.join("wine").exists() {
+        return Ok(swifter_bin_dir.join("wine").to_string_lossy().to_string());
+    }
+
+    // 2. Whisky runtime
+    if let Some(app_support) = dirs::data_dir() {
+        for whisky_sub in &["com.isaacmarovitz.Whisky/Libraries/Wine/bin", "Whisky/Libraries/Wine/bin"] {
+            let p = app_support.join(whisky_sub);
+            if p.join("wine64").exists() {
+                return Ok(p.join("wine64").to_string_lossy().to_string());
+            }
+            if p.join("wine").exists() {
+                return Ok(p.join("wine").to_string_lossy().to_string());
+            }
+        }
+    }
+
+    // 3. Homebrew Wine
+    for brew_path in &["/opt/homebrew/bin/wine64", "/opt/homebrew/bin/wine", "/usr/local/bin/wine64", "/usr/local/bin/wine"] {
+        if Path::new(brew_path).exists() {
+            return Ok(brew_path.to_string());
+        }
+    }
+
+    // 4. CrossOver
+    let crossover_wine = Path::new("/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine64");
+    if crossover_wine.exists() {
+        return Ok(crossover_wine.to_string_lossy().to_string());
+    }
+
+    // 5. PATH
+    for cmd in &["wine64", "wine"] {
+        if let Ok(output) = Command::new("which").arg(cmd).output() {
+            if output.status.success() {
+                let p = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !p.is_empty() {
+                    return Ok(p);
+                }
+            }
+        }
+    }
+
+    Err("Wine runtime binary not found. Please install Wine or download it via the Requirements tab.".to_string())
+}
+
 /// 3. Performs a 3-second dry-run execution using Wine to capture early crash logs
 #[tauri::command]
 pub async fn dry_run_check(exe_path: String, backend: String) -> Result<Vec<String>, String> {
@@ -89,21 +141,10 @@ pub async fn dry_run_check(exe_path: String, backend: String) -> Result<Vec<Stri
 
     let parent_dir = path.parent().unwrap_or_else(|| Path::new("."));
 
-    // Find wine binary
-    let wine_candidates = [
-        "/opt/homebrew/bin/wine64",
-        "/usr/local/bin/wine64",
-        "/opt/homebrew/bin/wine",
-        "/usr/local/bin/wine",
-    ];
-
-    let mut wine_bin = "wine64".to_string();
-    for candidate in wine_candidates {
-        if Path::new(candidate).exists() {
-            wine_bin = candidate.to_string();
-            break;
-        }
-    }
+    let wine_bin = match resolve_wine_binary() {
+        Ok(b) => b,
+        Err(e) => return Ok(vec![format!("Wine Error: {}", e)]),
+    };
 
     let dry_run_prefix = std::env::temp_dir().join("swifter_dry_run_prefix");
     let _ = std::fs::create_dir_all(&dry_run_prefix);
@@ -112,7 +153,12 @@ pub async fn dry_run_check(exe_path: String, backend: String) -> Result<Vec<Stri
     cmd.arg(&path)
         .current_dir(parent_dir)
         .env("WINEPREFIX", &dry_run_prefix)
-        .env("WINEDEBUG", "+err");
+        .env("WINEARCH", "win64")
+        .env("WINEDEBUG", "+err")
+        .env("MESA_LOADER_DRIVER_OVERRIDE", "zink")
+        .env("GALLIUM_DRIVER", "zink")
+        .env("MESA_GL_VERSION_OVERRIDE", "4.6")
+        .env("MESA_GLSL_VERSION_OVERRIDE", "460");
 
     if backend == "D3DMetal" {
         cmd.env("WINEMSYNC", "1");
@@ -120,7 +166,6 @@ pub async fn dry_run_check(exe_path: String, backend: String) -> Result<Vec<Stri
     } else if backend == "DXVK" {
         cmd.env("WINEDLLOVERRIDES", "d3d11=n,b;dxgi=n,b");
     }
-
     // Execute with a 3-second timeout via tokio
     let run_task = tokio::task::spawn_blocking(move || {
         let mut child = match cmd.spawn() {
@@ -245,94 +290,36 @@ pub async fn open_in_finder(path: String) -> Result<(), String> {
 /// 8. Checks if a Wine translation runtime is installed on the system
 #[tauri::command]
 pub async fn check_runtime_status() -> Result<RuntimeStatus, String> {
-    // 1. Check Swifter internal bundled runtime (both wine64 and wine)
-    let swifter_bin_dir = prefix_mgr::get_swifter_support_dir().join("runtimes/wine/bin");
-    if swifter_bin_dir.join("wine64").exists() || swifter_bin_dir.join("wine").exists() {
-        let bin_path = if swifter_bin_dir.join("wine64").exists() {
-            swifter_bin_dir.join("wine64")
-        } else {
-            swifter_bin_dir.join("wine")
-        };
-        return Ok(RuntimeStatus {
-            is_installed: true,
-            runtime_name: Some("Swifter Internal Runtime".to_string()),
-            runtime_path: Some(bin_path.to_string_lossy().to_string()),
-            has_dxvk: true,
-            has_d3dmetal: true,
-        });
-    }
-    // 2. Check Whisky runtime
-    if let Some(app_support) = dirs::data_dir() {
-        let whisky_wine = app_support.join("com.isaacmarovitz.Whisky/Libraries/Wine/bin/wine64");
-        if whisky_wine.exists() {
-            return Ok(RuntimeStatus {
+    match resolve_wine_binary() {
+        Ok(bin_path) => {
+            let name = if bin_path.contains("Swifter") {
+                "Swifter Internal Runtime"
+            } else if bin_path.contains("Whisky") {
+                "Whisky Wine Runtime (GPTK)"
+            } else if bin_path.contains("homebrew") || bin_path.contains("usr/local") {
+                "Homebrew Wine"
+            } else if bin_path.contains("CrossOver") {
+                "CrossOver Runtime"
+            } else {
+                "System Wine"
+            };
+
+            Ok(RuntimeStatus {
                 is_installed: true,
-                runtime_name: Some("Whisky Wine Runtime (GPTK)".to_string()),
-                runtime_path: Some(whisky_wine.to_string_lossy().to_string()),
+                runtime_name: Some(name.to_string()),
+                runtime_path: Some(bin_path),
                 has_dxvk: true,
                 has_d3dmetal: true,
-            });
+            })
         }
-        let whisky_wine2 = app_support.join("Whisky/Libraries/Wine/bin/wine64");
-        if whisky_wine2.exists() {
-            return Ok(RuntimeStatus {
-                is_installed: true,
-                runtime_name: Some("Whisky Wine Runtime (GPTK)".to_string()),
-                runtime_path: Some(whisky_wine2.to_string_lossy().to_string()),
-                has_dxvk: true,
-                has_d3dmetal: true,
-            });
-        }
+        Err(_) => Ok(RuntimeStatus {
+            is_installed: false,
+            runtime_name: None,
+            runtime_path: None,
+            has_dxvk: false,
+            has_d3dmetal: false,
+        }),
     }
-
-    // 3. Check Homebrew Wine (Apple Silicon & Intel)
-    for brew_path in &["/opt/homebrew/bin/wine64", "/usr/local/bin/wine64"] {
-        if Path::new(brew_path).exists() {
-            return Ok(RuntimeStatus {
-                is_installed: true,
-                runtime_name: Some("Homebrew Wine".to_string()),
-                runtime_path: Some(brew_path.to_string()),
-                has_dxvk: true,
-                has_d3dmetal: false,
-            });
-        }
-    }
-
-    // 4. Check CrossOver
-    let crossover_wine = Path::new("/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine64");
-    if crossover_wine.exists() {
-        return Ok(RuntimeStatus {
-            is_installed: true,
-            runtime_name: Some("CrossOver Runtime".to_string()),
-            runtime_path: Some(crossover_wine.to_string_lossy().to_string()),
-            has_dxvk: true,
-            has_d3dmetal: true,
-        });
-    }
-
-    // 5. Check PATH
-    if let Ok(output) = Command::new("which").arg("wine64").output() {
-        if output.status.success() {
-            let p = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !p.is_empty() {
-                return Ok(RuntimeStatus {
-                    is_installed: true,
-                    runtime_name: Some("System Wine64".to_string()),
-                    runtime_path: Some(p),
-                    has_dxvk: true,
-                    has_d3dmetal: false,
-                });
-            }
-        }
-    }
-
-    Ok(RuntimeStatus {
-        is_installed: false,
-        runtime_name: None,
-        runtime_path: None,
-        has_dxvk: false,
-        has_d3dmetal: false,
-    })
 }
 
 /// 9. Downloads and provisions the official Swifter Wine runtime in background

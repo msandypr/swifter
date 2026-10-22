@@ -29,8 +29,9 @@ pub fn generate_launcher_script(config: &SwifterAppConfig) -> String {
     script.push_str(&format!("ENABLE_RETINA={}\n", if config.enable_retina { "1" } else { "0" }));
 
     // Prefix path
-    script.push_str("\n# Micro-Prefix location\n");
+    script.push_str("\n# Micro-Prefix location & Architecture\n");
     script.push_str("export WINEPREFIX=\"$HOME/Library/Application Support/Swifter/prefixes/$APP_SLUG\"\n");
+    script.push_str("export WINEARCH=win64\n");
     script.push_str("mkdir -p \"$WINEPREFIX\"\n\n");
 
     // Wine binary search
@@ -45,18 +46,30 @@ fi
 # 2. Check Swifter bundled runtime
 if [ -z "$WINE_BIN" ] && [ -x "$HOME/Library/Application Support/Swifter/runtimes/wine/bin/wine64" ]; then
     WINE_BIN="$HOME/Library/Application Support/Swifter/runtimes/wine/bin/wine64"
+elif [ -z "$WINE_BIN" ] && [ -x "$HOME/Library/Application Support/Swifter/runtimes/wine/bin/wine" ]; then
+    WINE_BIN="$HOME/Library/Application Support/Swifter/runtimes/wine/bin/wine"
 fi
 
 # 3. Check Whisky runtime
 if [ -z "$WINE_BIN" ] && [ -x "$HOME/Library/Application Support/com.isaacmarovitz.Whisky/Libraries/Wine/bin/wine64" ]; then
     WINE_BIN="$HOME/Library/Application Support/com.isaacmarovitz.Whisky/Libraries/Wine/bin/wine64"
+elif [ -z "$WINE_BIN" ] && [ -x "$HOME/Library/Application Support/com.isaacmarovitz.Whisky/Libraries/Wine/bin/wine" ]; then
+    WINE_BIN="$HOME/Library/Application Support/com.isaacmarovitz.Whisky/Libraries/Wine/bin/wine"
+elif [ -z "$WINE_BIN" ] && [ -x "$HOME/Library/Application Support/Whisky/Libraries/Wine/bin/wine64" ]; then
+    WINE_BIN="$HOME/Library/Application Support/Whisky/Libraries/Wine/bin/wine64"
+elif [ -z "$WINE_BIN" ] && [ -x "$HOME/Library/Application Support/Whisky/Libraries/Wine/bin/wine" ]; then
+    WINE_BIN="$HOME/Library/Application Support/Whisky/Libraries/Wine/bin/wine"
 fi
 
 # 4. Check Homebrew Wine (Apple Silicon & Intel)
 if [ -z "$WINE_BIN" ] && [ -x "/opt/homebrew/bin/wine64" ]; then
     WINE_BIN="/opt/homebrew/bin/wine64"
+elif [ -z "$WINE_BIN" ] && [ -x "/opt/homebrew/bin/wine" ]; then
+    WINE_BIN="/opt/homebrew/bin/wine"
 elif [ -z "$WINE_BIN" ] && [ -x "/usr/local/bin/wine64" ]; then
     WINE_BIN="/usr/local/bin/wine64"
+elif [ -z "$WINE_BIN" ] && [ -x "/usr/local/bin/wine" ]; then
+    WINE_BIN="/usr/local/bin/wine"
 fi
 
 # 5. Check CrossOver runtime
@@ -74,9 +87,15 @@ if [ -z "$WINE_BIN" ]; then
 fi
 
 if [ -z "$WINE_BIN" ]; then
-    osascript -e 'display alert "Wine Runtime Not Found" message "Swifter needs a Wine runtime to run this application.\n\nPlease install Wine (via Homebrew: brew install --cask wine-stable) or install Whisky." as critical'
+    osascript -e 'display alert "Wine Runtime Not Found" message "Swifter needs a Wine runtime to run this application.\n\nPlease install Wine or use Swifter Requirements tab." as critical'
     exit 1
 fi
+
+# OpenGL over Vulkan / Metal translation flags
+export MESA_LOADER_DRIVER_OVERRIDE=zink
+export GALLIUM_DRIVER=zink
+export MESA_GL_VERSION_OVERRIDE=4.6
+export MESA_GLSL_VERSION_OVERRIDE=460
 
 "#);
 

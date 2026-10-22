@@ -46,37 +46,6 @@
     </div>
   </div>
 
-  <!-- Key Architecture Pillars -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-    <div class="glass-card rounded-xl p-4 border border-zinc-800 bg-zinc-900/30 space-y-1.5">
-      <div class="text-xs font-semibold text-zinc-200">Isolated Micro-Prefixes</div>
-      <p class="text-[11px] text-zinc-400 leading-relaxed">
-        Avoids wasting 2 GB per game. Uses global runtime symlinks with isolated AppData and registry files (~15–30 MB per game).
-      </p>
-    </div>
-
-    <div class="glass-card rounded-xl p-4 border border-zinc-800 bg-zinc-900/30 space-y-1.5">
-      <div class="text-xs font-semibold text-zinc-200">Whole-Folder Context</div>
-      <p class="text-[11px] text-zinc-400 leading-relaxed">
-        Preserves all game data files, Unity data folders, Godot .pck files, and companion Windows DLLs intact.
-      </p>
-    </div>
-
-    <div class="glass-card rounded-xl p-4 border border-zinc-800 bg-zinc-900/30 space-y-1.5">
-      <div class="text-xs font-semibold text-zinc-200">Native PE Icon Extraction</div>
-      <p class="text-[11px] text-zinc-400 leading-relaxed">
-        Reads Windows PE binary headers directly in Rust and extracts RT_GROUP_ICON resources into multi-resolution Apple .icns containers.
-      </p>
-    </div>
-
-    <div class="glass-card rounded-xl p-4 border border-zinc-800 bg-zinc-900/30 space-y-1.5">
-      <div class="text-xs font-semibold text-zinc-200">Dynamic Translation</div>
-      <p class="text-[11px] text-zinc-400 leading-relaxed">
-        Seamlessly integrates DXVK (MoltenVK), Apple Game Porting Toolkit 2 (D3DMetal), and Vanilla Wine.
-      </p>
-    </div>
-  </div>
-
   <!-- Links & Repository -->
   <div class="glass-card rounded-2xl p-4 border border-zinc-800 bg-zinc-900/40 flex items-center justify-between">
     <div class="flex items-center gap-3">
