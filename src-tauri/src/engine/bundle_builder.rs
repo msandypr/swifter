@@ -112,15 +112,50 @@ pub fn build_application_bundle(options: BuildAppOptions) -> Result<PathBuf, Str
     }
 
     if !icon_copied {
-        // Generate fallback icon directly
-        let fallback_img = icon_extract::extract_and_generate_icns(&options.game_folder_path.join(&options.target_exe_relative))
-            .unwrap_or_else(|_| {
-                let temp_fallback = std::env::temp_dir().join(format!("{}_fallback.icns", app_slug));
-                let _ = icon_extract::pack_image_to_icns(&image::DynamicImage::new_rgba8(512, 512), &temp_fallback);
-                temp_fallback
-            });
-        if fallback_img.exists() {
-            let _ = fs::copy(&fallback_img, &target_icns);
+        let prefix_dir = prefix_mgr::get_prefix_dir(&app_slug);
+        let shared_runtime = prefix_mgr::get_shared_runtime_dir();
+
+        let mut possible_exes = Vec::new();
+        possible_exes.push(options.game_folder_path.join(&options.target_exe_relative));
+        possible_exes.push(prefix_dir.join(&options.target_exe_relative));
+        possible_exes.push(prefix_dir.join("drive_c").join(&options.target_exe_relative));
+        possible_exes.push(shared_runtime.join(&options.target_exe_relative));
+        possible_exes.push(shared_runtime.join("drive_c").join(&options.target_exe_relative));
+
+        if let Some(stripped) = options.target_exe_relative.strip_prefix("drive_c/") {
+            possible_exes.push(prefix_dir.join("drive_c").join(stripped));
+            possible_exes.push(shared_runtime.join("drive_c").join(stripped));
+        }
+
+        // Also check any .exe directly in game_folder_path
+        if let Ok(entries) = fs::read_dir(&options.game_folder_path) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                if entry.path().extension().and_then(|s| s.to_str()).map(|e| e.eq_ignore_ascii_case("exe")).unwrap_or(false) {
+                    possible_exes.push(entry.path());
+                }
+            }
+        }
+
+        for exe in possible_exes {
+            if exe.exists() {
+                if let Ok(icns) = icon_extract::extract_and_generate_icns(&exe) {
+                    if icns.exists() {
+                        if fs::copy(&icns, &target_icns).is_ok() {
+                            icon_copied = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if !icon_copied {
+        // Generate stylized fallback icon (never a blank image)
+        let fallback_img = icon_extract::generate_fallback_game_icon();
+        let temp_fallback = std::env::temp_dir().join(format!("{}_fallback.icns", app_slug));
+        if icon_extract::pack_image_to_icns(&fallback_img, &temp_fallback).is_ok() {
+            let _ = fs::copy(&temp_fallback, &target_icns);
         }
     }
 

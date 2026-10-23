@@ -6,7 +6,6 @@
 
 <p align="center">
   <strong>Portable Windows (<code>.exe</code>) to Native macOS (<code>.app</code>) Packaging Engine</strong><br>
-  <em>Designed and created by <a href="https://github.com/msandypr">msandypr</a></em>
 </p>
 
 <p align="center">

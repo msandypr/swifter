@@ -114,9 +114,9 @@ fi
 if [ "$BACKEND" = "D3DMetal" ]; then
     export WINEESYNC=1
     export WINEMSYNC=1
-    export WINEDLLOVERRIDES="d3d12=n;d3d11=n;dxgi=n;${WINEDLLOVERRIDES}"
+    export WINEDLLOVERRIDES="d3d12=n,b;d3d11=n,b;dxgi=b,n;${WINEDLLOVERRIDES}"
 elif [ "$BACKEND" = "DXVK" ]; then
-    export WINEDLLOVERRIDES="d3d11=n,b;d3d10core=n,b;d3d9=n,b;dxgi=n,b;${WINEDLLOVERRIDES}"
+    export WINEDLLOVERRIDES="d3d11=n,b;d3d10core=n,b;d3d9=n,b;dxgi=b,n;${WINEDLLOVERRIDES}"
 fi
 
 if [ "$ENABLE_RETINA" = "1" ]; then
@@ -131,20 +131,33 @@ fi
 
     // Launch execution
     script.push_str(r#"
-# Resolve executable path (checks game payload, prefix root, or prefix drive_c)
+# Resolve executable path (checks game payload, prefix root, prefix drive_c, or wine-shared)
 TARGET_EXE=""
+
 if [ -f "$PAYLOAD_DIR/$EXE_REL" ]; then
     TARGET_EXE="$PAYLOAD_DIR/$EXE_REL"
 elif [ -f "$WINEPREFIX/$EXE_REL" ]; then
     TARGET_EXE="$WINEPREFIX/$EXE_REL"
 elif [ -f "$WINEPREFIX/drive_c/$EXE_REL" ]; then
     TARGET_EXE="$WINEPREFIX/drive_c/$EXE_REL"
+elif [ -f "$HOME/Library/Application Support/Swifter/runtimes/wine-shared/$EXE_REL" ]; then
+    TARGET_EXE="$HOME/Library/Application Support/Swifter/runtimes/wine-shared/$EXE_REL"
+elif [ -f "$HOME/Library/Application Support/Swifter/runtimes/wine-shared/drive_c/$EXE_REL" ]; then
+    TARGET_EXE="$HOME/Library/Application Support/Swifter/runtimes/wine-shared/drive_c/$EXE_REL"
 elif [ -f "$EXE_REL" ]; then
     TARGET_EXE="$EXE_REL"
 fi
 
+# If TARGET_EXE is still an installer or not found, auto-discover installed game binary in Program Files
+if [ -z "$TARGET_EXE" ] || echo "$EXE_REL" | grep -qiE "setup|install"; then
+    DISCOVERED="$(find "$WINEPREFIX/drive_c/Program Files" "$WINEPREFIX/drive_c/Program Files (x86)" "$HOME/Library/Application Support/Swifter/runtimes/wine-shared/drive_c/Program Files" "$HOME/Library/Application Support/Swifter/runtimes/wine-shared/drive_c/Program Files (x86)" -maxdepth 3 -iname "*.exe" 2>/dev/null | grep -viE "unins|setup|install|crash|vcredist" | head -n 1)"
+    if [ -n "$DISCOVERED" ] && [ -f "$DISCOVERED" ]; then
+        TARGET_EXE="$DISCOVERED"
+    fi
+fi
+
 if [ -z "$TARGET_EXE" ] || [ ! -f "$TARGET_EXE" ]; then
-    osascript -e "display alert \"Game Executable Missing\" message \"Could not find executable: $EXE_REL\nSearched in payload and prefix.\" as critical"
+    osascript -e "display alert \"Game Executable Missing\" message \"Could not find executable: $EXE_REL\nSearched in payload, prefix, and Program Files.\" as critical"
     exit 1
 fi
 

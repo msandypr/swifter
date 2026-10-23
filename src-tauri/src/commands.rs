@@ -12,6 +12,7 @@ pub struct InstalledAppInfo {
     pub slug: String,
     pub bundle_path: String,
     pub backend: String,
+    pub target_exe: String,
     pub icon_path: Option<String>,
 }
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -239,6 +240,7 @@ pub async fn list_installed_apps() -> Result<Vec<InstalledAppInfo>, String> {
                                 let name = cfg["app_name"].as_str().unwrap_or("App").to_string();
                                 let slug = cfg["app_slug"].as_str().unwrap_or("app").to_string();
                                 let backend = cfg["backend"].as_str().unwrap_or("DXVK").to_string();
+                                let target_exe = cfg["target_exe_relative"].as_str().unwrap_or("").to_string();
                                 let icon = path.join("Contents/Resources/AppIcon.icns");
                                 let icon_path = if icon.exists() {
                                     Some(icon.to_string_lossy().to_string())
@@ -251,6 +253,7 @@ pub async fn list_installed_apps() -> Result<Vec<InstalledAppInfo>, String> {
                                     slug,
                                     bundle_path: path.to_string_lossy().to_string(),
                                     backend,
+                                    target_exe,
                                     icon_path,
                                 });
                             }

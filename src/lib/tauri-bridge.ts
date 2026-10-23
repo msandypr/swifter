@@ -29,6 +29,7 @@ export interface InstalledAppInfo {
   slug: string;
   bundle_path: string;
   backend: string;
+  target_exe: string;
   icon_path?: string | null;
 }
 

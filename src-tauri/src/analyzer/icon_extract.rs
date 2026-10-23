@@ -142,7 +142,7 @@ pub fn pack_image_to_icns(base_img: &DynamicImage, output_path: &Path) -> Result
 }
 
 /// Generates a modern gradient fallback icon if the executable has no icon
-fn generate_fallback_game_icon() -> DynamicImage {
+pub fn generate_fallback_game_icon() -> DynamicImage {
     let width = 512;
     let height = 512;
     let mut img = RgbaImage::new(width, height);
