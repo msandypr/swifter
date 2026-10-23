@@ -7,6 +7,7 @@
     openInFinder,
     scanAvailableExesInApp,
     updateAppTargetExe,
+    uninstallPackagedApp,
     type InstalledAppInfo
   } from '$lib/tauri-bridge';
   import {
@@ -20,7 +21,8 @@
     FileCode,
     Check,
     X,
-    ExternalLink
+    Trash2,
+    AlertCircle
   } from 'lucide-svelte';
 
   let { onNavigatePacker }: { onNavigatePacker: () => void } = $props();
@@ -36,6 +38,10 @@
   let isScanningExes = $state(false);
   let chosenExe = $state('');
   let updateStatusMsg = $state('');
+
+  // Uninstall state
+  let isConfirmUninstallOpen = $state(false);
+  let isUninstalling = $state(false);
 
   async function loadApps() {
     isLoading = true;
@@ -82,6 +88,21 @@
       }, 600);
     } catch (err: unknown) {
       updateStatusMsg = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  async function handleConfirmUninstall() {
+    if (!selectedApp) return;
+    isUninstalling = true;
+    try {
+      await uninstallPackagedApp(selectedApp.bundle_path);
+      isConfirmUninstallOpen = false;
+      isSettingsOpen = false;
+      await loadApps();
+    } catch (err: unknown) {
+      updateStatusMsg = err instanceof Error ? err.message : String(err);
+    } finally {
+      isUninstalling = false;
     }
   }
 
@@ -222,7 +243,7 @@
           </button>
         </div>
 
-        <div class="space-y-3.5 text-xs">
+        <div class="space-y-3 text-xs">
           <!-- 1. Bundle Location Row -->
           <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1.5">
             <div class="flex items-center justify-between">
@@ -270,7 +291,7 @@
             {/if}
 
             <p class="text-[11px] text-zinc-500">
-              If the game ran an installer, ensure this points to the main game binary (inside Program Files), not the installer.
+              Ensure this points to the main game binary (inside Program Files), not the installer.
             </p>
           </div>
 
@@ -286,6 +307,21 @@
             >
               <FolderArchive class="w-3.5 h-3.5 text-zinc-400" />
               <span>Open Save Data</span>
+            </button>
+          </div>
+
+          <!-- 4. Uninstall Application Section -->
+          <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 flex items-center justify-between">
+            <div class="space-y-0.5">
+              <span class="text-zinc-300 font-medium">Uninstall Game</span>
+              <p class="text-[11px] text-zinc-500">Deletes the .app bundle and its micro-prefix (~15MB).</p>
+            </div>
+            <button
+              onclick={() => (isConfirmUninstallOpen = true)}
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-all cursor-pointer"
+            >
+              <Trash2 class="w-3.5 h-3.5" />
+              <span>Uninstall</span>
             </button>
           </div>
         </div>
@@ -308,6 +344,42 @@
             class="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-all cursor-pointer"
           >
             Close
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Confirm Uninstall Modal -->
+  {#if isConfirmUninstallOpen && selectedApp}
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+      <div class="w-full max-w-sm glass-panel rounded-2xl p-5 shadow-2xl border border-zinc-800 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex items-start gap-3">
+          <div class="w-9 h-9 rounded-xl bg-zinc-800 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+            <Trash2 class="w-4 h-4" />
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-zinc-100">Uninstall {selectedApp.name}?</h3>
+            <p class="text-xs text-zinc-400 mt-0.5 leading-relaxed">
+              This will permanently delete the application bundle and its isolated micro-prefix (~15MB) from your Mac.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button
+            onclick={handleConfirmUninstall}
+            disabled={isUninstalling}
+            class="flex-1 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold active:scale-95 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+          >
+            {isUninstalling ? 'Uninstalling...' : 'Yes, Delete Game'}
+          </button>
+          <button
+            onclick={() => (isConfirmUninstallOpen = false)}
+            disabled={isUninstalling}
+            class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-all cursor-pointer"
+          >
+            Cancel
           </button>
         </div>
       </div>

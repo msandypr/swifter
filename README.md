@@ -98,7 +98,7 @@ swifter/
 │       ├── GameInspector.svelte # Configuration, backend switcher, and dry-run tester
 │       ├── ProgressModal.svelte # Visual step-by-step packing progress
 │       ├── Shelf.svelte         # Game library with launch & save data access
-│       ├── Requirements.svelte  # System requirements & Wine/DXVK runtime manager
+│       ├── Settings.svelte      # Settings & Wine/DXVK runtime & disk manager
 │       ├── Guide.svelte         # Built-in step-by-step user guide
 │       └── About.svelte         # Project details & credits to msandypr
 └── recipes/

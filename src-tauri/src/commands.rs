@@ -697,11 +697,23 @@ pub async fn run_installer_in_prefix(exe_path: String, app_slug: String) -> Resu
             .env("MESA_GL_VERSION_OVERRIDE", "4.6")
             .env("MESA_GLSL_VERSION_OVERRIDE", "460");
 
-        let status = cmd.status().map_err(|e| format!("Failed to spawn installer: {}", e))?;
+        let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn installer: {}", e))?;
+        let pid = child.id();
+
+        // Automatically bring the newly spawned installer window to the foreground on macOS
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(700));
+            let script = format!(
+                "tell application \"System Events\"\ntry\nset frontmost of first process whose unix id is {} to true\nend try\nend tell\ntell application \"Wine\" to activate",
+                pid
+            );
+            let _ = Command::new("osascript").arg("-e").arg(&script).output();
+        });
+
+        let status = child.wait().map_err(|e| format!("Installer process failed: {}", e))?;
         if !status.success() {
             return Err(format!("Installer process exited with code: {:?}", status.code()));
         }
-
         let mut installed_exes = Vec::new();
 
         // 1. Inspect Windows shortcut (.lnk) files in Desktop and Start Menu (created by installers)
@@ -830,6 +842,60 @@ pub async fn update_app_target_exe(bundle_path: String, new_target_exe: String) 
 
     std::fs::write(&config_path, serde_json::to_string_pretty(&cfg).unwrap())
         .map_err(|e| format!("Failed to write updated config: {}", e))?;
+
+    Ok(())
+}
+
+/// 14. Uninstalls a packaged application bundle and removes its isolated micro-prefix
+#[tauri::command]
+pub async fn uninstall_packaged_app(bundle_path: String) -> Result<(), String> {
+    let bundle = PathBuf::from(&bundle_path);
+    if !bundle.exists() {
+        return Err("Application bundle does not exist on disk.".into());
+    }
+
+    let config_path = bundle.join("Contents/Resources/swifter.config.json");
+    let mut app_slug = None;
+    if config_path.exists() {
+        if let Ok(c) = std::fs::read_to_string(&config_path) {
+            if let Ok(cfg) = serde_json::from_str::<serde_json::Value>(&c) {
+                if let Some(slug) = cfg["app_slug"].as_str() {
+                    app_slug = Some(slug.to_string());
+                }
+            }
+        }
+    }
+
+    // 1. Delete the macOS application bundle
+    std::fs::remove_dir_all(&bundle)
+        .map_err(|e| format!("Failed to delete application bundle: {}", e))?;
+
+    // 2. Delete the associated isolated micro-prefix if present
+    if let Some(slug) = app_slug {
+        let prefix_dir = prefix_mgr::get_prefix_dir(&slug);
+        if prefix_dir.exists() {
+            let _ = std::fs::remove_dir_all(&prefix_dir);
+        }
+    }
+
+    Ok(())
+}
+
+/// 15. Removes all installed Swifter runtimes (Wine, DXVK, shared base prefix) and temporary cache
+#[tauri::command]
+pub async fn remove_all_runtimes() -> Result<(), String> {
+    let runtimes_dir = prefix_mgr::get_swifter_support_dir().join("runtimes");
+    if runtimes_dir.exists() {
+        std::fs::remove_dir_all(&runtimes_dir)
+            .map_err(|e| format!("Failed to delete runtimes directory: {}", e))?;
+    }
+
+    if let Some(cache_dir) = dirs::cache_dir() {
+        let swifter_cache = cache_dir.join("swifter");
+        if swifter_cache.exists() {
+            let _ = std::fs::remove_dir_all(&swifter_cache);
+        }
+    }
 
     Ok(())
 }

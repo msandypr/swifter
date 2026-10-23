@@ -109,3 +109,11 @@ export async function scanAvailableExesInApp(bundlePath: string): Promise<string
 export async function updateAppTargetExe(bundlePath: string, newTargetExe: string): Promise<void> {
   await invoke('update_app_target_exe', { bundlePath, newTargetExe });
 }
+
+export async function uninstallPackagedApp(bundlePath: string): Promise<void> {
+  await invoke('uninstall_packaged_app', { bundlePath });
+}
+
+export async function removeAllRuntimes(): Promise<void> {
+  await invoke('remove_all_runtimes');
+}

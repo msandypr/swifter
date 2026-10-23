@@ -1,7 +1,10 @@
 <script lang="ts">
-  import type { RuntimeStatus, RuntimeDownloadProgress } from '$lib/tauri-bridge';
   import {
-    Cpu,
+    removeAllRuntimes,
+    type RuntimeStatus
+  } from '$lib/tauri-bridge';
+  import {
+    Settings,
     CheckCircle2,
     XCircle,
     Download,
@@ -10,8 +13,8 @@
     ShieldCheck,
     AlertTriangle,
     RefreshCw,
-    Terminal,
-    HardDrive
+    HardDrive,
+    Database
   } from 'lucide-svelte';
 
   let {
@@ -27,6 +30,9 @@
   } = $props();
 
   let isRefreshing = $state(false);
+  let isConfirmRemoveAllOpen = $state(false);
+  let isRemovingAll = $state(false);
+  let removeAllMsg = $state('');
 
   async function handleRefreshClick() {
     isRefreshing = true;
@@ -35,30 +41,51 @@
       isRefreshing = false;
     }, 400);
   }
+
+  async function handleConfirmRemoveAll() {
+    isRemovingAll = true;
+    removeAllMsg = '';
+    try {
+      await removeAllRuntimes();
+      isConfirmRemoveAllOpen = false;
+      removeAllMsg = 'All runtimes and shared caches removed successfully.';
+      await onRefresh();
+    } catch (err: unknown) {
+      removeAllMsg = err instanceof Error ? err.message : String(err);
+    } finally {
+      isRemovingAll = false;
+    }
+  }
 </script>
 
-<div class="w-full max-w-3xl mx-auto flex flex-col p-6 space-y-6 overflow-y-auto max-h-[calc(100vh-4rem)] text-zinc-300">
+<div class="w-full max-w-3xl mx-auto flex flex-col space-y-6 pb-8 text-zinc-300">
   <!-- Header with Refresh Button -->
   <div class="flex items-center justify-between border-b border-zinc-800 pb-4">
     <div>
       <h2 class="text-base font-semibold text-zinc-100 flex items-center gap-2">
-        <Cpu class="w-4 h-4 text-zinc-400" />
-        System Requirements & Runtimes
+        <Settings class="w-4 h-4 text-zinc-400" />
+        Swifter Settings & Runtimes
       </h2>
       <p class="text-xs text-zinc-400 mt-0.5">
-        Manage underlying compatibility engines needed to run Windows games on macOS.
+        Manage translation engines, compatibility layers, and disk storage.
       </p>
     </div>
 
     <button
       onclick={handleRefreshClick}
       disabled={isRefreshing}
-      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-xs font-medium text-zinc-300 transition-all active:scale-95 disabled:opacity-50"
+      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-xs font-medium text-zinc-300 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
     >
       <RefreshCw class="w-3.5 h-3.5 {isRefreshing ? 'animate-spin' : ''}" />
       Check Status
     </button>
   </div>
+
+  {#if removeAllMsg}
+    <div class="p-3.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-300">
+      {removeAllMsg}
+    </div>
+  {/if}
 
   <div class="space-y-4">
     <!-- 1. Wine Core Runtime Card -->
@@ -66,7 +93,7 @@
       <div class="flex items-start justify-between gap-4">
         <div class="space-y-1">
           <div class="flex items-center gap-2">
-            <h3 class="text-sm font-semibold text-zinc-100">Wine Core Translation Layer</h3>
+            <h3 class="text-sm font-semibold text-zinc-100">Wine Translation Layer</h3>
             {#if runtimeStatus?.is_installed}
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                 <CheckCircle2 class="w-3 h-3" />
@@ -105,10 +132,10 @@
               <span class="text-[11px] text-zinc-500">Installed in Swifter Application Support</span>
               <button
                 onclick={onRemoveRequest}
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-rose-500/20 transition-all active:scale-95"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-rose-500/20 transition-all active:scale-95 cursor-pointer"
               >
                 <Trash2 class="w-3.5 h-3.5" />
-                Remove Runtime
+                Remove Wine
               </button>
             </div>
           {/if}
@@ -128,7 +155,7 @@
           <div class="flex flex-wrap items-center gap-2.5 pt-1">
             <button
               onclick={onInstallRequest}
-              class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs active:scale-95 transition-all shadow-sm"
+              class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs active:scale-95 transition-all shadow-sm cursor-pointer"
             >
               <Download class="w-3.5 h-3.5" />
               Install Swifter Runtime (~182 MB)
@@ -176,5 +203,63 @@
         Apple's native translation engine translating DirectX 11/12 directly into Metal shading language with ESYNC and MSYNC synchronization support.
       </p>
     </div>
+
+    <!-- 4. Danger Zone / Remove All Runtimes -->
+    <div class="glass-card rounded-2xl p-5 border border-zinc-800 bg-zinc-900/40 space-y-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <HardDrive class="w-4 h-4 text-rose-400" />
+          <h3 class="text-sm font-semibold text-zinc-100">Disk & Runtime Cleanup</h3>
+        </div>
+      </div>
+      <p class="text-xs text-zinc-400 leading-relaxed">
+        Completely remove all Swifter-downloaded runtime files (Wine, DXVK DLLs, and shared base prefix) to free up disk storage space.
+      </p>
+      <div class="pt-1 flex justify-end">
+        <button
+          onclick={() => (isConfirmRemoveAllOpen = true)}
+          class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-all cursor-pointer active:scale-95"
+        >
+          <Trash2 class="w-3.5 h-3.5" />
+          <span>Remove All Runtimes</span>
+        </button>
+      </div>
+    </div>
   </div>
+
+  <!-- Confirm Remove All Runtimes Modal -->
+  {#if isConfirmRemoveAllOpen}
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+      <div class="w-full max-w-sm glass-panel rounded-2xl p-5 shadow-2xl border border-zinc-800 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex items-start gap-3">
+          <div class="w-9 h-9 rounded-xl bg-zinc-800 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+            <Trash2 class="w-4 h-4" />
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-zinc-100">Remove All Runtimes?</h3>
+            <p class="text-xs text-zinc-400 mt-0.5 leading-relaxed">
+              This will uninstall Wine, DXVK, and the shared base prefix (~200 MB+). Packaged games will not run until runtimes are re-installed.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button
+            onclick={handleConfirmRemoveAll}
+            disabled={isRemovingAll}
+            class="flex-1 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold active:scale-95 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+          >
+            {isRemovingAll ? 'Deleting...' : 'Yes, Delete All'}
+          </button>
+          <button
+            onclick={() => (isConfirmRemoveAllOpen = false)}
+            disabled={isRemovingAll}
+            class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-all cursor-pointer"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>

@@ -12,7 +12,8 @@
     Layers,
     Play,
     FileCode,
-    AlertTriangle
+    AlertTriangle,
+    Lock
   } from 'lucide-svelte';
 
   let {
@@ -326,12 +327,15 @@
     <!-- 3-Second Dry-Run Button -->
     <button
       onclick={() => onTestRun(inspection.target_exe_path, selectedBackend)}
-      disabled={isDryRunning || isPacking || inspection.is_anticheat_blocked}
-      class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 active:scale-95 disabled:opacity-50 text-xs font-medium text-zinc-200 transition-all"
+      disabled={isDryRunning || isPacking || inspection.is_anticheat_blocked || (inspection.is_installer && installerDiscoveredExes.length === 0)}
+      class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium text-zinc-200 transition-all cursor-pointer"
     >
       {#if isDryRunning}
         <div class="w-3.5 h-3.5 border-2 border-zinc-300 border-t-transparent rounded-full animate-spin"></div>
         <span>Testing...</span>
+      {:else if inspection.is_installer && installerDiscoveredExes.length === 0}
+        <Lock class="w-3.5 h-3.5 text-zinc-500" />
+        <span>Install First</span>
       {:else}
         <Terminal class="w-3.5 h-3.5 text-zinc-400" />
         <span>Dry Run (3s Test)</span>
@@ -341,12 +345,15 @@
     <!-- Pack Primary Button -->
     <button
       onclick={handleStartPackaging}
-      disabled={isPacking || inspection.is_anticheat_blocked}
-      class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-zinc-100 hover:bg-white active:scale-95 disabled:opacity-50 text-xs font-semibold text-zinc-950 border border-zinc-200 transition-all shadow-md"
+      disabled={isPacking || inspection.is_anticheat_blocked || (inspection.is_installer && installerDiscoveredExes.length === 0)}
+      class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-zinc-100 hover:bg-white active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold text-zinc-950 border border-zinc-200 transition-all shadow-md cursor-pointer"
     >
       {#if isPacking}
         <div class="w-3.5 h-3.5 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin"></div>
         <span>Packaging with Swifter...</span>
+      {:else if inspection.is_installer && installerDiscoveredExes.length === 0}
+        <Lock class="w-3.5 h-3.5 text-zinc-700" />
+        <span>Run Setup Wizard First</span>
       {:else}
         <Package class="w-3.5 h-3.5" />
         <span>Pack with Swifter</span>

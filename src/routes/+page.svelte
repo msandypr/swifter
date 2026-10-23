@@ -18,7 +18,7 @@
   import GameInspector from '../components/GameInspector.svelte';
   import ProgressModal from '../components/ProgressModal.svelte';
   import Shelf from '../components/Shelf.svelte';
-  import Requirements from '../components/Requirements.svelte';
+  import SettingsView from '../components/Settings.svelte';
   import Guide from '../components/Guide.svelte';
   import About from '../components/About.svelte';
   import {
@@ -31,12 +31,15 @@
     AlertCircle,
     Download,
     CheckCircle2,
-    Cpu,
+    Settings,
     Trash2,
-    ShieldAlert
+    ShieldAlert,
+    AlertTriangle,
+    ChevronDown,
+    ChevronUp
   } from 'lucide-svelte';
 
-  type ActiveTab = 'packer' | 'shelf' | 'requirements' | 'guide' | 'about';
+  type ActiveTab = 'packer' | 'shelf' | 'settings' | 'guide' | 'about';
 
   let activeTab = $state<ActiveTab>('packer');
   let inspection = $state<SwifterInspection | null>(null);
@@ -64,10 +67,21 @@
   let currentProgressStep = $state(1);
   let createdBundlePath = $state('');
   let packedAppName = $state('');
+  let packError = $state('');
 
-  // Dry-run drawer state
+  // Dry-run modal state
   let isDryRunDrawerOpen = $state(false);
   let dryRunLogs = $state<string[]>([]);
+  let isShowTerminalLogs = $state(false);
+
+  let dryRunHasError = $derived(
+    dryRunLogs.some(
+      (l) =>
+        l.toLowerCase().includes('failed to spawn') ||
+        l.toLowerCase().includes('wine error') ||
+        l.toLowerCase().includes('c0000135')
+    )
+  );
 
   async function refreshRuntimeStatus() {
     try {
@@ -181,6 +195,7 @@
 
     isPacking = true;
     errorMessage = '';
+    packError = '';
     isProgressModalOpen = true;
     isProgressComplete = false;
     currentProgressStep = 1;
@@ -209,8 +224,8 @@
       createdBundlePath = bundle;
       isProgressComplete = true;
     } catch (err: unknown) {
-      errorMessage = err instanceof Error ? err.message : String(err);
-      isProgressModalOpen = false;
+      packError = err instanceof Error ? err.message : String(err);
+      isProgressComplete = false;
     } finally {
       isPacking = false;
     }
@@ -219,6 +234,7 @@
   async function handleTestRun(exePath: string, backend: string) {
     isDryRunning = true;
     errorMessage = '';
+    isShowTerminalLogs = false;
     try {
       const logs = await dryRunCheck(exePath, backend);
       dryRunLogs = logs;
@@ -239,7 +255,6 @@
 <div class="flex-1 flex flex-col h-full overflow-hidden bg-[#111113] text-zinc-200">
   <!-- Segmented Navigation Header with Centered Navbar & Integrated Logo -->
   <div class="px-8 pt-4 pb-2 flex items-center justify-center shrink-0">
-    <!-- Centered Unified Navbar with Integrated Logo Pill -->
     <div class="flex items-center p-1 rounded-xl glass-card border border-zinc-800 bg-zinc-900/60 shadow-sm">
       <!-- Integrated Brand Header -->
       <div class="flex items-center gap-2 pl-2 pr-3 py-1 border-r border-zinc-800 mr-1 select-none">
@@ -251,7 +266,7 @@
         <span class="text-xs font-semibold text-zinc-100 tracking-tight">Swifter</span>
       </div>
 
-      <!-- Segmented Buttons -->
+      <!-- Segmented Buttons with 0px Geometry Shift -->
       <div class="flex items-center space-x-1">
         <button
           onclick={() => (activeTab = 'packer')}
@@ -269,13 +284,13 @@
           Shelf
         </button>
 
-        <!-- Requirements Tab with status dot -->
+        <!-- Settings Tab with live status dot -->
         <button
-          onclick={() => (activeTab = 'requirements')}
-          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 ease-out cursor-pointer {activeTab === 'requirements' ? 'bg-zinc-800 text-zinc-100 border-zinc-700 shadow-xs' : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}"
+          onclick={() => (activeTab = 'settings')}
+          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 ease-out cursor-pointer {activeTab === 'settings' ? 'bg-zinc-800 text-zinc-100 border-zinc-700 shadow-xs' : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}"
         >
-          <Cpu class="w-3.5 h-3.5 text-zinc-400" />
-          <span>Requirements</span>
+          <Settings class="w-3.5 h-3.5 text-zinc-400" />
+          <span>Settings</span>
           {#if runtimeStatus}
             {#if runtimeStatus.is_installed}
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]"></span>
@@ -308,23 +323,23 @@
   {#if runtimeStatus && !runtimeStatus.is_installed && activeTab === 'packer'}
     <div class="mx-8 mt-2 p-3.5 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between text-xs space-x-3">
       <div class="flex items-center gap-2.5 text-zinc-300">
-        <Cpu class="w-4 h-4 text-zinc-400 shrink-0" />
-        <span>No Wine translation runtime detected on this Mac. Download Swifter's runtime or install via Homebrew.</span>
+        <AlertTriangle class="w-4 h-4 text-zinc-400 shrink-0" />
+        <span>No Wine translation runtime detected on this Mac. Configure or download it in Settings.</span>
       </div>
 
       <div class="flex items-center gap-2 shrink-0">
         <button
           onclick={requestInstallRuntime}
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs active:scale-95 transition-all shadow-sm"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs active:scale-95 transition-all shadow-sm cursor-pointer"
         >
           <Download class="w-3.5 h-3.5" />
           Download Runtime
         </button>
         <button
-          onclick={() => (activeTab = 'requirements')}
-          class="px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs border border-zinc-700 transition-all"
+          onclick={() => (activeTab = 'settings')}
+          class="px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs border border-zinc-700 transition-all cursor-pointer"
         >
-          Details
+          Settings
         </button>
       </div>
     </div>
@@ -362,8 +377,8 @@
       {/if}
     {:else if activeTab === 'shelf'}
       <Shelf onNavigatePacker={() => (activeTab = 'packer')} />
-    {:else if activeTab === 'requirements'}
-      <Requirements
+    {:else if activeTab === 'settings'}
+      <SettingsView
         {runtimeStatus}
         onInstallRequest={requestInstallRuntime}
         onRemoveRequest={requestRemoveRuntime}
@@ -410,13 +425,13 @@
         <div class="flex items-center gap-2 pt-1">
           <button
             onclick={confirmAndStartInstall}
-            class="flex-1 py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold active:scale-95 transition-all shadow-sm"
+            class="flex-1 py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold active:scale-95 transition-all shadow-sm cursor-pointer"
           >
             Confirm & Download
           </button>
           <button
             onclick={() => (isConfirmInstallOpen = false)}
-            class="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-all"
+            class="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-all cursor-pointer"
           >
             Cancel
           </button>
@@ -449,13 +464,13 @@
           <button
             onclick={confirmAndStartRemove}
             disabled={isRemovingRuntime}
-            class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold active:scale-95 transition-all shadow-sm"
+            class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold active:scale-95 transition-all shadow-sm cursor-pointer disabled:opacity-50"
           >
             {isRemovingRuntime ? 'Removing...' : 'Yes, Delete Runtime'}
           </button>
           <button
             onclick={() => (isConfirmRemoveOpen = false)}
-            class="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-all"
+            class="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-all cursor-pointer"
           >
             Cancel
           </button>
@@ -491,7 +506,7 @@
           </div>
 
           {#if !isInstallingRuntime}
-            <button onclick={() => (isRuntimeModalOpen = false)} class="text-zinc-400 hover:text-zinc-200 p-1 rounded-lg hover:bg-zinc-800 transition-colors">
+            <button onclick={() => (isRuntimeModalOpen = false)} class="text-zinc-400 hover:text-zinc-200 p-1 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer">
               <X class="w-4 h-4" />
             </button>
           {/if}
@@ -560,7 +575,7 @@
           </div>
           <button
             onclick={() => (isRuntimeModalOpen = false)}
-            class="w-full py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold active:scale-95 transition-all shadow-sm"
+            class="w-full py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold active:scale-95 transition-all shadow-sm cursor-pointer"
           >
             Done
           </button>
@@ -579,13 +594,13 @@
           <div class="flex items-center gap-2">
             <button
               onclick={confirmAndStartInstall}
-              class="flex-1 py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold transition-all shadow-sm"
+              class="flex-1 py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold transition-all shadow-sm cursor-pointer"
             >
               Retry Download
             </button>
             <button
               onclick={() => (isRuntimeModalOpen = false)}
-              class="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-all"
+              class="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-all cursor-pointer"
             >
               Close
             </button>
@@ -599,6 +614,7 @@
   <ProgressModal
     isOpen={isProgressModalOpen}
     isComplete={isProgressComplete}
+    error={packError}
     bundlePath={createdBundlePath}
     appName={packedAppName}
     currentStep={currentProgressStep}
@@ -613,37 +629,90 @@
     onReveal={(path) => openInFinder(path)}
   />
 
-  <!-- Dry-Run Output Drawer/Modal -->
+  <!-- User-Friendly Dry-Run Diagnostic Modal -->
   {#if isDryRunDrawerOpen}
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
-      <div class="w-full max-w-2xl h-[420px] glass-panel rounded-2xl p-5 shadow-2xl flex flex-col space-y-3 border border-zinc-800">
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+      <div class="w-full max-w-lg glass-panel rounded-2xl p-6 shadow-2xl border border-zinc-800 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+        <!-- Header -->
         <div class="flex items-center justify-between pb-2 border-b border-zinc-800">
-          <div class="flex items-center gap-2 text-xs font-semibold text-zinc-200">
-            <Terminal class="w-4 h-4 text-zinc-400" />
-            Wine 3-Second Dry-Run Diagnostic
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 shrink-0">
+              {#if dryRunHasError}
+                <AlertTriangle class="w-5 h-5 text-rose-400" />
+              {:else}
+                <CheckCircle2 class="w-5 h-5 text-emerald-400" />
+              {/if}
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-zinc-100">
+                {dryRunHasError ? 'Test Run Encountered An Issue' : 'Test Run Successful'}
+              </h3>
+              <p class="text-xs text-zinc-400">
+                {dryRunHasError ? 'Could not execute the binary smoothly.' : 'The game launched properly and is ready to package.'}
+              </p>
+            </div>
           </div>
+
           <button
             onclick={() => (isDryRunDrawerOpen = false)}
-            class="p-1 text-zinc-400 hover:text-zinc-200 rounded-lg hover:bg-zinc-800 transition-colors"
+            class="p-1 text-zinc-400 hover:text-zinc-200 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
           >
             <X class="w-4 h-4" />
           </button>
         </div>
 
-        <div class="flex-1 overflow-y-auto font-mono text-[11px] p-3 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-300 space-y-1 select-text">
-          {#each dryRunLogs as line}
-            <div class="{line.includes('err:') ? 'text-rose-400' : line.includes('warn:') ? 'text-amber-400' : 'text-zinc-300'}">
-              {line}
+        <!-- Result Summary -->
+        <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 text-xs space-y-2 text-zinc-300">
+          {#if dryRunHasError}
+            <div class="text-rose-300 leading-relaxed font-medium">
+              The game process could not start or a required dependency was not found.
             </div>
-          {/each}
+            <p class="text-[11px] text-zinc-400 leading-relaxed">
+              Tip: If this is an installer, run the setup wizard first. You can also try changing the translation engine (DXVK vs Vanilla) in the settings above.
+            </p>
+          {:else}
+            <div class="text-zinc-200 leading-relaxed font-medium">
+              Process initialized and ran without crashing.
+            </div>
+            <p class="text-[11px] text-zinc-400 leading-relaxed">
+              The translation layer successfully allocated memory, created windows, and handled graphics initialization.
+            </p>
+          {/if}
         </div>
 
+        <!-- Collapsible Technical Terminal Logs -->
+        <div class="space-y-2">
+          <button
+            onclick={() => (isShowTerminalLogs = !isShowTerminalLogs)}
+            class="inline-flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+          >
+            {#if isShowTerminalLogs}
+              <ChevronUp class="w-3.5 h-3.5" />
+              <span>Hide Technical Details</span>
+            {:else}
+              <ChevronDown class="w-3.5 h-3.5" />
+              <span>View Technical Details (Logs)</span>
+            {/if}
+          </button>
+
+          {#if isShowTerminalLogs}
+            <div class="max-h-48 overflow-y-auto font-mono text-[10px] p-3 rounded-xl bg-black/60 border border-zinc-800 text-zinc-400 space-y-0.5 select-text">
+              {#each dryRunLogs as line}
+                <div class="{line.includes('err:') || line.includes('Error:') ? 'text-rose-400' : line.includes('warn:') ? 'text-amber-400' : 'text-zinc-400'}">
+                  {line}
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
+
+        <!-- Modal Actions -->
         <div class="flex justify-end pt-1">
           <button
             onclick={() => (isDryRunDrawerOpen = false)}
-            class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-zinc-200 border border-zinc-700 transition-colors"
+            class="px-5 py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold active:scale-95 transition-all shadow-sm cursor-pointer"
           >
-            Close Logs
+            Close
           </button>
         </div>
       </div>
