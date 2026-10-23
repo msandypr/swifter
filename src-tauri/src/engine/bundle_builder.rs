@@ -99,18 +99,22 @@ pub fn build_application_bundle(options: BuildAppOptions) -> Result<PathBuf, Str
     fs::set_permissions(&launcher_path, permissions)
         .map_err(|e| format!("Failed to set launcher executable permissions: {}", e))?;
 
-    // 5. Place AppIcon.icns
+    // 5. Place AppIcon.icns & AppIcon.png
     let target_icns = resources_dir.join("AppIcon.icns");
+    let target_png = resources_dir.join("AppIcon.png");
     let mut icon_copied = false;
 
     if let Some(cached_icns) = &options.cached_icns_path {
         if cached_icns.exists() {
             if fs::copy(cached_icns, &target_icns).is_ok() {
                 icon_copied = true;
+                let cached_png = cached_icns.with_extension("png");
+                if cached_png.exists() {
+                    let _ = fs::copy(&cached_png, &target_png);
+                }
             }
         }
     }
-
     if !icon_copied {
         let prefix_dir = prefix_mgr::get_prefix_dir(&app_slug);
         let shared_runtime = prefix_mgr::get_shared_runtime_dir();
@@ -142,6 +146,10 @@ pub fn build_application_bundle(options: BuildAppOptions) -> Result<PathBuf, Str
                     if icns.exists() {
                         if fs::copy(&icns, &target_icns).is_ok() {
                             icon_copied = true;
+                            let png = icns.with_extension("png");
+                            if png.exists() {
+                                let _ = fs::copy(&png, &target_png);
+                            }
                             break;
                         }
                     }
@@ -157,8 +165,10 @@ pub fn build_application_bundle(options: BuildAppOptions) -> Result<PathBuf, Str
         if icon_extract::pack_image_to_icns(&fallback_img, &temp_fallback).is_ok() {
             let _ = fs::copy(&temp_fallback, &target_icns);
         }
+        let _ = fallback_img
+            .resize_exact(256, 256, image::imageops::FilterType::Lanczos3)
+            .save(&target_png);
     }
-
     // 6. Connect game payload (symlink or full copy)
     let payload_path = resources_dir.join("game_payload");
     if options.copy_files_instead_of_symlink {

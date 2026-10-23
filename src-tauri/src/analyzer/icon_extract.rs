@@ -32,8 +32,10 @@ pub fn extract_and_generate_icns(exe_path: &Path) -> Result<PathBuf, String> {
     let hash_hex = format!("{:x}", hasher.finalize());
     let icns_path = cache_dir.join(format!("{}.icns", hash_hex));
 
+    let png_path = icns_path.with_extension("png");
+
     // If cached icns already exists and is not empty, reuse it
-    if icns_path.exists() {
+    if icns_path.exists() && png_path.exists() {
         if let Ok(meta) = icns_path.metadata() {
             if meta.len() > 0 {
                 return Ok(icns_path);
@@ -51,9 +53,11 @@ pub fn extract_and_generate_icns(exe_path: &Path) -> Result<PathBuf, String> {
             generate_fallback_game_icon()
         }
     };
-
     // Pack into .icns with macOS standard resolutions
     pack_image_to_icns(&base_image, &icns_path)?;
+    let _ = base_image
+        .resize_exact(256, 256, image::imageops::FilterType::Lanczos3)
+        .save(&png_path);
 
     Ok(icns_path)
 }

@@ -33,6 +33,7 @@ regex = "1.10"
 dirs = "5.0"
 slugify = "0.1.0"
 sha2 = "0.10"
+base64 = "0.22"
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

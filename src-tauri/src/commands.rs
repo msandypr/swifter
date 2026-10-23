@@ -14,6 +14,7 @@ pub struct InstalledAppInfo {
     pub backend: String,
     pub target_exe: String,
     pub icon_path: Option<String>,
+    pub icon_data_url: Option<String>,
 }
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RuntimeStatus {
@@ -213,6 +214,44 @@ pub async fn reveal_save_folder(app_slug: String) -> Result<(), String> {
 
     Ok(())
 }
+fn extract_icon_data_url(bundle_path: &Path) -> Option<String> {
+    let resources = bundle_path.join("Contents/Resources");
+    let png_path = resources.join("AppIcon.png");
+    if png_path.exists() {
+        if let Ok(bytes) = std::fs::read(&png_path) {
+            use base64::Engine;
+            let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+            return Some(format!("data:image/png;base64,{}", b64));
+        }
+    }
+
+    let icns_path = resources.join("AppIcon.icns");
+    if icns_path.exists() {
+        if let Ok(file) = std::fs::File::open(&icns_path) {
+            if let Ok(family) = icns::IconFamily::read(file) {
+                for icon_type in &[
+                    icns::IconType::RGBA32_128x128,
+                    icns::IconType::RGBA32_256x256,
+                    icns::IconType::RGBA32_64x64,
+                    icns::IconType::RGBA32_32x32,
+                    icns::IconType::RGB24_128x128,
+                ] {
+                    if let Ok(img) = family.get_icon_with_type(*icon_type) {
+                        let mut png_buf = Vec::new();
+                        if img.write_png(&mut png_buf).is_ok() {
+                            use base64::Engine;
+                            let b64 = base64::engine::general_purpose::STANDARD.encode(&png_buf);
+                            return Some(format!("data:image/png;base64,{}", b64));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
+
 
 /// 5. Lists all Swifter-packaged apps in /Applications and ~/Applications
 #[tauri::command]
@@ -247,6 +286,7 @@ pub async fn list_installed_apps() -> Result<Vec<InstalledAppInfo>, String> {
                                 } else {
                                     None
                                 };
+                                let icon_data_url = extract_icon_data_url(&path);
 
                                 apps.push(InstalledAppInfo {
                                     name,
@@ -255,6 +295,7 @@ pub async fn list_installed_apps() -> Result<Vec<InstalledAppInfo>, String> {
                                     backend,
                                     target_exe,
                                     icon_path,
+                                    icon_data_url,
                                 });
                             }
                         }

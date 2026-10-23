@@ -31,6 +31,7 @@ export interface InstalledAppInfo {
   backend: string;
   target_exe: string;
   icon_path?: string | null;
+  icon_data_url?: string | null;
 }
 
 export interface RuntimeStatus {

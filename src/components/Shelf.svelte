@@ -152,8 +152,12 @@
           <!-- Top Row: [ICON] [NAME] ... [ENGINE BADGE] -->
           <div class="flex items-center justify-between gap-3">
             <div class="flex items-center gap-3.5 min-w-0">
-              <div class="w-12 h-12 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
-                <Gamepad2 class="w-6 h-6 text-zinc-300" />
+              <div class="w-12 h-12 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0 shadow-sm overflow-hidden p-1">
+                {#if app.icon_data_url}
+                  <img src={app.icon_data_url} alt={app.name} class="w-full h-full object-contain rounded-lg" />
+                {:else}
+                  <Gamepad2 class="w-6 h-6 text-zinc-300" />
+                {/if}
               </div>
               <div class="min-w-0">
                 <h4 class="text-sm font-semibold text-zinc-100 truncate" title={app.name}>
@@ -200,8 +204,12 @@
         <!-- Modal Header -->
         <div class="flex items-center justify-between pb-2 border-b border-zinc-800">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 shrink-0">
-              <Settings class="w-5 h-5" />
+            <div class="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 shrink-0 overflow-hidden p-1">
+              {#if selectedApp.icon_data_url}
+                <img src={selectedApp.icon_data_url} alt={selectedApp.name} class="w-full h-full object-contain rounded-lg" />
+              {:else}
+                <Settings class="w-5 h-5" />
+              {/if}
             </div>
             <div>
               <h3 class="text-sm font-semibold text-zinc-100">{selectedApp.name}</h3>
