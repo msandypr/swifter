@@ -11,14 +11,16 @@
   } from '$lib/tauri-bridge';
   import {
     Gamepad2,
-    Play,
+    Rocket,
+    Settings,
     FolderArchive,
     FolderOpen,
     RefreshCw,
     PackagePlus,
     FileCode,
     Check,
-    X
+    X,
+    ExternalLink
   } from 'lucide-svelte';
 
   let { onNavigatePacker }: { onNavigatePacker: () => void } = $props();
@@ -27,9 +29,9 @@
   let isLoading = $state(true);
   let errorMsg = $state('');
 
-  // Target executable switcher modal states
-  let isExeModalOpen = $state(false);
-  let selectedAppForExe = $state<InstalledAppInfo | null>(null);
+  // Game Settings Modal states
+  let isSettingsOpen = $state(false);
+  let selectedApp = $state<InstalledAppInfo | null>(null);
   let availableExes = $state<string[]>([]);
   let isScanningExes = $state(false);
   let chosenExe = $state('');
@@ -47,18 +49,18 @@
     }
   }
 
-  async function handleOpenExeModal(app: InstalledAppInfo) {
-    selectedAppForExe = app;
-    isExeModalOpen = true;
+  async function handleOpenSettingsModal(app: InstalledAppInfo) {
+    selectedApp = app;
+    isSettingsOpen = true;
     isScanningExes = true;
     updateStatusMsg = '';
     availableExes = [];
-    chosenExe = '';
+    chosenExe = app.target_exe || '';
 
     try {
       const exes = await scanAvailableExesInApp(app.bundle_path);
       availableExes = exes;
-      if (exes.length > 0) {
+      if (!chosenExe && exes.length > 0) {
         chosenExe = exes[0];
       }
     } catch (err: unknown) {
@@ -69,15 +71,15 @@
   }
 
   async function handleSaveTargetExe() {
-    if (!selectedAppForExe || !chosenExe) return;
+    if (!selectedApp || !chosenExe) return;
 
     try {
-      await updateAppTargetExe(selectedAppForExe.bundle_path, chosenExe);
-      updateStatusMsg = 'Target executable updated successfully!';
+      await updateAppTargetExe(selectedApp.bundle_path, chosenExe);
+      updateStatusMsg = 'Target executable saved successfully!';
       setTimeout(() => {
-        isExeModalOpen = false;
+        isSettingsOpen = false;
         loadApps();
-      }, 700);
+      }, 600);
     } catch (err: unknown) {
       updateStatusMsg = err instanceof Error ? err.message : String(err);
     }
@@ -88,16 +90,16 @@
   });
 </script>
 
-<div class="w-full max-w-4xl mx-auto flex flex-col space-y-6 pb-8">
+<div class="w-full max-w-4xl mx-auto flex flex-col space-y-6 pb-8 text-zinc-200">
   <!-- Top Header -->
-  <div class="flex items-center justify-between">
+  <div class="flex items-center justify-between border-b border-zinc-800 pb-4">
     <div>
       <h2 class="text-base font-semibold text-zinc-100 flex items-center gap-2">
-        <FolderArchive class="w-4 h-4 text-zinc-400" />
-        Installed Games & Apps
+        <Gamepad2 class="w-4 h-4 text-zinc-400" />
+        Game Library (Shelf)
       </h2>
       <p class="text-xs text-zinc-400 mt-0.5">
-        Games packaged with Swifter's isolated micro-prefixes
+        Installed games packaged with Swifter's isolated micro-prefixes
       </p>
     </div>
 
@@ -131,7 +133,7 @@
       <div class="space-y-1">
         <h3 class="text-sm font-semibold text-zinc-200">No Swifter Games Found</h3>
         <p class="text-xs text-zinc-400 max-w-sm leading-relaxed">
-          You haven't packaged any games yet. Drag and drop a Windows .exe or game folder to get started.
+          You haven't packaged any games yet. Drag and drop a Windows .exe or game folder in the Packer tab to get started.
         </p>
       </div>
       <button
@@ -143,70 +145,47 @@
       </button>
     </div>
   {:else}
-    <!-- Games Grid -->
+    <!-- Games Grid: 2 columns on tablet/desktop -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       {#each apps as app}
-        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between space-y-4 border border-zinc-800 bg-zinc-900/40 transition-all">
-          <div class="flex items-start gap-4">
-            <div class="w-12 h-12 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0 shadow">
-              <Gamepad2 class="w-6 h-6 text-zinc-300" />
-            </div>
-
-            <div class="flex-1 min-w-0 space-y-1">
-              <div class="flex items-center justify-between gap-2">
+        <div class="glass-card rounded-2xl p-5 border border-zinc-800 bg-zinc-900/40 hover:border-zinc-700 transition-all flex flex-col justify-between space-y-4">
+          <!-- Top Row: [ICON] [NAME] ... [ENGINE BADGE] -->
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3.5 min-w-0">
+              <div class="w-12 h-12 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
+                <Gamepad2 class="w-6 h-6 text-zinc-300" />
+              </div>
+              <div class="min-w-0">
                 <h4 class="text-sm font-semibold text-zinc-100 truncate" title={app.name}>
                   {app.name}
                 </h4>
-                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700 shrink-0">
-                  {app.backend}
-                </span>
+                <div class="text-[11px] font-mono text-zinc-500 truncate" title={app.target_exe}>
+                  {app.target_exe ? app.target_exe.split('/').pop() : 'game.exe'}
+                </div>
               </div>
-              <p class="text-[11px] font-mono text-zinc-500 truncate" title={app.bundle_path}>
-                {app.bundle_path}
-              </p>
             </div>
+
+            <span class="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700 shrink-0">
+              {app.backend}
+            </span>
           </div>
 
-          <!-- Clear Executable Target Display & Switcher -->
-          <div class="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-zinc-950/80 border border-zinc-800 text-[11px]">
-            <div class="flex items-center gap-1.5 min-w-0 flex-1">
-              <FileCode class="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-              <span class="text-zinc-500 shrink-0 font-medium">Executable:</span>
-              <span class="text-zinc-200 font-mono truncate" title={app.target_exe}>{app.target_exe || 'game.exe'}</span>
-            </div>
-            <button
-              onclick={() => handleOpenExeModal(app)}
-              class="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-zinc-300 text-[10px] font-medium border border-zinc-700 shrink-0 transition-all"
-            >
-              Change .exe
-            </button>
-          </div>
-
-          <!-- Actions -->
-          <div class="flex items-center gap-2 pt-1 border-t border-zinc-800">
+          <!-- Bottom Row: [LAUNCH BUTTON] [SETTINGS BUTTON] with matching rounded-xl -->
+          <div class="grid grid-cols-2 gap-2.5 pt-1">
             <button
               onclick={() => launchInstalledApp(app.bundle_path)}
-              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-100 hover:bg-white active:scale-95 text-xs font-semibold text-zinc-950 shadow-sm transition-all"
+              class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-100 hover:bg-white active:scale-95 text-xs font-semibold text-zinc-950 transition-all shadow-sm cursor-pointer"
             >
-              <Play class="w-3.5 h-3.5" />
-              Launch
+              <Rocket class="w-3.5 h-3.5 text-zinc-950" />
+              <span>Launch</span>
             </button>
 
             <button
-              onclick={() => revealSaveFolder(app.slug)}
-              title="Open AppData save folder"
-              class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-xs font-medium text-zinc-300 border border-zinc-700 transition-all"
+              onclick={() => handleOpenSettingsModal(app)}
+              class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-xs font-medium text-zinc-200 border border-zinc-700 transition-all shadow-sm cursor-pointer"
             >
-              <FolderArchive class="w-3.5 h-3.5 text-zinc-400" />
-              Save Data
-            </button>
-
-            <button
-              onclick={() => openInFinder(app.bundle_path)}
-              title="Reveal in Finder"
-              class="inline-flex items-center justify-center p-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-zinc-300 border border-zinc-700 transition-all"
-            >
-              <FolderOpen class="w-3.5 h-3.5" />
+              <Settings class="w-3.5 h-3.5 text-zinc-400" />
+              <span>Settings</span>
             </button>
           </div>
         </div>
@@ -214,76 +193,113 @@
     </div>
   {/if}
 
-  <!-- Change Target Executable Modal -->
-  {#if isExeModalOpen && selectedAppForExe}
+  <!-- Game Settings Modal -->
+  {#if isSettingsOpen && selectedApp}
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-      <div class="w-full max-w-md glass-panel rounded-2xl p-6 shadow-2xl border border-zinc-800 space-y-5 animate-in fade-in zoom-in-95 duration-150">
-        <div class="flex items-center justify-between">
+      <div class="w-full max-w-lg glass-panel rounded-2xl p-6 shadow-2xl border border-zinc-800 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between pb-2 border-b border-zinc-800">
           <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 shrink-0">
-              <FileCode class="w-4 h-4" />
+            <div class="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 shrink-0">
+              <Settings class="w-5 h-5" />
             </div>
             <div>
-              <h3 class="text-sm font-semibold text-zinc-100">Select Launch Executable</h3>
-              <p class="text-xs text-zinc-400">{selectedAppForExe.name}</p>
+              <h3 class="text-sm font-semibold text-zinc-100">{selectedApp.name}</h3>
+              <p class="text-xs text-zinc-400">Application Configuration & Paths</p>
             </div>
           </div>
 
-          <button onclick={() => (isExeModalOpen = false)} class="p-1 text-zinc-400 hover:text-zinc-200 rounded hover:bg-zinc-800">
+          <button onclick={() => (isSettingsOpen = false)} class="p-1 text-zinc-400 hover:text-zinc-200 rounded-lg hover:bg-zinc-800 transition-colors">
             <X class="w-4 h-4" />
           </button>
         </div>
 
-        <p class="text-xs text-zinc-400 leading-relaxed">
-          If your game ran an installer or contains multiple binaries, select which executable should be launched:
-        </p>
+        <div class="space-y-3.5 text-xs">
+          <!-- 1. Bundle Location Row -->
+          <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="text-zinc-400 font-medium">macOS Application Bundle</span>
+              <button
+                onclick={() => openInFinder(selectedApp?.bundle_path || '')}
+                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-[11px] border border-zinc-700 transition-colors cursor-pointer"
+              >
+                <FolderOpen class="w-3 h-3 text-zinc-400" />
+                <span>Reveal in Finder</span>
+              </button>
+            </div>
+            <div class="font-mono text-[11px] text-zinc-300 break-all select-all">
+              {selectedApp.bundle_path}
+            </div>
+          </div>
 
-        {#if isScanningExes}
-          <div class="flex items-center justify-center p-6 space-y-2 text-zinc-400">
-            <div class="w-5 h-5 border-2 border-zinc-300 border-t-transparent rounded-full animate-spin"></div>
-            <span class="text-xs ml-2">Scanning payload and prefix...</span>
+          <!-- 2. Target Executable Picker -->
+          <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-zinc-400 font-medium">Target Game Executable (.exe)</span>
+              {#if isScanningExes}
+                <div class="flex items-center gap-1.5 text-zinc-500 text-[11px]">
+                  <div class="w-3 h-3 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin"></div>
+                  <span>Scanning...</span>
+                </div>
+              {/if}
+            </div>
+
+            {#if availableExes.length > 1}
+              <select
+                bind:value={chosenExe}
+                class="w-full px-3 py-2 rounded-xl glass-input text-xs font-mono text-zinc-200 border border-zinc-800 bg-zinc-900 cursor-pointer"
+              >
+                {#each availableExes as exe}
+                  <option value={exe} class="bg-zinc-900 text-zinc-200">{exe}</option>
+                {/each}
+              </select>
+            {:else}
+              <input
+                type="text"
+                bind:value={chosenExe}
+                class="w-full px-3 py-2 rounded-xl glass-input text-xs font-mono text-zinc-200 border border-zinc-800 bg-zinc-900"
+              />
+            {/if}
+
+            <p class="text-[11px] text-zinc-500">
+              If the game ran an installer, ensure this points to the main game binary (inside Program Files), not the installer.
+            </p>
           </div>
-        {:else if availableExes.length > 0}
-          <div class="space-y-2 max-h-48 overflow-y-auto">
-            {#each availableExes as exe}
-              <label class="flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all {chosenExe === exe ? 'border-zinc-300 bg-zinc-800 text-zinc-100' : 'border-zinc-800 bg-zinc-950/60 text-zinc-400 hover:border-zinc-700'}">
-                <span class="font-mono text-xs truncate max-w-[280px]" title={exe}>{exe}</span>
-                <input type="radio" name="targetExe" value={exe} bind:group={chosenExe} class="sr-only" />
-                {#if chosenExe === exe}
-                  <Check class="w-4 h-4 text-zinc-100 shrink-0" />
-                {/if}
-              </label>
-            {/each}
+
+          <!-- 3. Save Data Row -->
+          <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 flex items-center justify-between">
+            <div class="space-y-0.5">
+              <span class="text-zinc-400 font-medium">Save Data & Configuration</span>
+              <p class="text-[11px] text-zinc-500">Access isolated AppData save files for this game.</p>
+            </div>
+            <button
+              onclick={() => revealSaveFolder(selectedApp?.slug || '')}
+              class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs border border-zinc-700 transition-colors cursor-pointer"
+            >
+              <FolderArchive class="w-3.5 h-3.5 text-zinc-400" />
+              <span>Open Save Data</span>
+            </button>
           </div>
-        {:else}
-          <div class="p-3 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-zinc-400">
-            No additional executables found. You can enter a relative path manually:
-            <input
-              type="text"
-              bind:value={chosenExe}
-              placeholder="e.g. drive_c/Program Files/.../game.exe"
-              class="w-full mt-2 px-3 py-1.5 rounded-lg glass-input text-xs font-mono"
-            />
-          </div>
-        {/if}
+        </div>
 
         {#if updateStatusMsg}
-          <div class="text-xs font-mono text-zinc-300 px-1">{updateStatusMsg}</div>
+          <div class="text-xs font-mono text-emerald-400 px-1">{updateStatusMsg}</div>
         {/if}
 
-        <div class="flex items-center gap-2 pt-2">
+        <!-- Footer Actions with matching rounded-xl -->
+        <div class="flex items-center gap-2 pt-2 border-t border-zinc-800">
           <button
             onclick={handleSaveTargetExe}
             disabled={!chosenExe}
-            class="flex-1 py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold active:scale-95 disabled:opacity-50 transition-all shadow-sm"
+            class="flex-1 py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold active:scale-95 disabled:opacity-50 transition-all shadow-sm cursor-pointer"
           >
-            Save Launch Target
+            Save Target Executable
           </button>
           <button
-            onclick={() => (isExeModalOpen = false)}
-            class="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-all"
+            onclick={() => (isSettingsOpen = false)}
+            class="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-all cursor-pointer"
           >
-            Cancel
+            Close
           </button>
         </div>
       </div>

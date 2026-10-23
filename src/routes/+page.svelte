@@ -255,7 +255,7 @@
       <div class="flex items-center space-x-1">
         <button
           onclick={() => (activeTab = 'packer')}
-          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'packer' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 ease-out cursor-pointer {activeTab === 'packer' ? 'bg-zinc-800 text-zinc-100 border-zinc-700 shadow-xs' : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}"
         >
           <Package class="w-3.5 h-3.5 text-zinc-400" />
           Packer
@@ -263,7 +263,7 @@
 
         <button
           onclick={() => (activeTab = 'shelf')}
-          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'shelf' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 ease-out cursor-pointer {activeTab === 'shelf' ? 'bg-zinc-800 text-zinc-100 border-zinc-700 shadow-xs' : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}"
         >
           <Library class="w-3.5 h-3.5 text-zinc-400" />
           Shelf
@@ -272,7 +272,7 @@
         <!-- Requirements Tab with status dot -->
         <button
           onclick={() => (activeTab = 'requirements')}
-          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'requirements' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 ease-out cursor-pointer {activeTab === 'requirements' ? 'bg-zinc-800 text-zinc-100 border-zinc-700 shadow-xs' : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}"
         >
           <Cpu class="w-3.5 h-3.5 text-zinc-400" />
           <span>Requirements</span>
@@ -287,7 +287,7 @@
 
         <button
           onclick={() => (activeTab = 'guide')}
-          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'guide' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 ease-out cursor-pointer {activeTab === 'guide' ? 'bg-zinc-800 text-zinc-100 border-zinc-700 shadow-xs' : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}"
         >
           <BookOpen class="w-3.5 h-3.5 text-zinc-400" />
           Guide
@@ -295,7 +295,7 @@
 
         <button
           onclick={() => (activeTab = 'about')}
-          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 {activeTab === 'about' ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
+          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 ease-out cursor-pointer {activeTab === 'about' ? 'bg-zinc-800 text-zinc-100 border-zinc-700 shadow-xs' : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}"
         >
           <Info class="w-3.5 h-3.5 text-zinc-400" />
           About
