@@ -575,6 +575,67 @@ pub async fn remove_swifter_runtime() -> Result<(), String> {
     Ok(())
 }
 
+fn is_system_or_installer_binary(path_str: &str) -> bool {
+    let lower = path_str.to_lowercase();
+    let blacklist = [
+        "package cache",
+        "programdata",
+        "windows/",
+        "windows\\",
+        "temp/",
+        "temp\\",
+        "vcredist",
+        "vc_redist",
+        "dxsetup",
+        "unins",
+        "setup",
+        "install",
+        "crash",
+        "updater",
+        "winhelp",
+        "regedit",
+        "notepad",
+        "hh.exe",
+    ];
+    blacklist.iter().any(|b| lower.contains(b))
+}
+
+fn score_candidate(path_str: &str, clean_slug: &str) -> i32 {
+    let mut score = 0i32;
+    let lower = path_str.to_lowercase();
+
+    if lower.contains("program files") {
+        score += 100;
+    }
+    let filename = Path::new(path_str)
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_lowercase().replace('-', "").replace('_', ""))
+        .unwrap_or_default();
+
+    if filename == clean_slug {
+        score += 100;
+    } else if filename.contains(clean_slug) || clean_slug.contains(&filename) {
+        score += 50;
+    }
+
+    if lower.contains(clean_slug) {
+        score += 30;
+    }
+
+    score
+}
+
+fn rank_installed_executables(mut exes: Vec<String>, app_slug: &str) -> Vec<String> {
+    let clean_slug = app_slug.to_lowercase().replace('-', "").replace('_', "");
+    exes.retain(|e| !is_system_or_installer_binary(e));
+    exes.sort_by(|a, b| {
+        let score_a = score_candidate(a, &clean_slug);
+        let score_b = score_candidate(b, &clean_slug);
+        score_b.cmp(&score_a)
+    });
+    exes
+}
+
 /// 11. Executes a setup/installer wizard inside the isolated micro-prefix and scans for newly installed game binaries
 #[tauri::command]
 pub async fn run_installer_in_prefix(exe_path: String, app_slug: String) -> Result<Vec<String>, String> {
@@ -600,23 +661,22 @@ pub async fn run_installer_in_prefix(exe_path: String, app_slug: String) -> Resu
             return Err(format!("Installer process exited with code: {:?}", status.code()));
         }
 
-        // Scan drive_c inside the micro-prefix for all newly installed .exe files
         let mut installed_exes = Vec::new();
-        let drive_c = prefix_dir.join("drive_c");
-        let shared_drive_c = prefix_mgr::get_shared_runtime_dir().join("drive_c");
-        let search_dirs = [drive_c, shared_drive_c];
 
-        for d in search_dirs {
-            if d.exists() {
-                for entry in walkdir::WalkDir::new(&d).follow_links(true).max_depth(6).into_iter().filter_map(|e| e.ok()) {
-                    if entry.file_type().is_file() {
-                        let p = entry.path();
-                        if p.extension().and_then(|s| s.to_str()).map(|ext| ext.eq_ignore_ascii_case("exe")).unwrap_or(false) {
-                            let name = p.file_name().map(|s| s.to_string_lossy().to_lowercase()).unwrap_or_default();
-                            if !name.starts_with("unins") && !name.contains("setup") && !name.contains("install") && !name.contains("crash") {
-                                if let Ok(rel) = p.strip_prefix(&d) {
-                                    let candidate = format!("drive_c/{}", rel.to_string_lossy());
-                                    if !installed_exes.contains(&candidate) {
+        // 1. Inspect Windows shortcut (.lnk) files in Desktop and Start Menu (created by installers)
+        let users_dir = prefix_dir.join("drive_c/users");
+        if users_dir.exists() {
+            for entry in walkdir::WalkDir::new(&users_dir).max_depth(8).into_iter().filter_map(|e| e.ok()) {
+                if entry.file_type().is_file() && entry.path().extension().and_then(|s| s.to_str()).map(|e| e.eq_ignore_ascii_case("lnk")).unwrap_or(false) {
+                    let lnk_name = entry.file_name().to_string_lossy().to_lowercase();
+                    if !lnk_name.contains("unins") && !lnk_name.contains("license") && !lnk_name.contains("help") {
+                        if let Ok(content) = std::fs::read(entry.path()) {
+                            let s = String::from_utf8_lossy(&content);
+                            for chunk in s.split('\0') {
+                                if (chunk.starts_with("C:\\") || chunk.starts_with("c:\\")) && chunk.to_lowercase().ends_with(".exe") {
+                                    let rel = chunk[3..].replace('\\', "/");
+                                    let candidate = format!("drive_c/{}", rel);
+                                    if !installed_exes.contains(&candidate) && !is_system_or_installer_binary(&candidate) {
                                         installed_exes.push(candidate);
                                     }
                                 }
@@ -627,7 +687,31 @@ pub async fn run_installer_in_prefix(exe_path: String, app_slug: String) -> Resu
             }
         }
 
-        Ok(installed_exes)
+        // 2. Scan drive_c inside micro-prefix and shared runtime
+        let drive_c = prefix_dir.join("drive_c");
+        let shared_drive_c = prefix_mgr::get_shared_runtime_dir().join("drive_c");
+        let search_dirs = [drive_c, shared_drive_c];
+
+        for d in search_dirs {
+            if d.exists() {
+                for entry in walkdir::WalkDir::new(&d).follow_links(true).max_depth(6).into_iter().filter_map(|e| e.ok()) {
+                    if entry.file_type().is_file() {
+                        let p = entry.path();
+                        if p.extension().and_then(|s| s.to_str()).map(|ext| ext.eq_ignore_ascii_case("exe")).unwrap_or(false) {
+                            if let Ok(rel) = p.strip_prefix(&d) {
+                                let candidate = format!("drive_c/{}", rel.to_string_lossy());
+                                if !is_system_or_installer_binary(&candidate) && !installed_exes.contains(&candidate) {
+                                    installed_exes.push(candidate);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let ranked = rank_installed_executables(installed_exes, &app_slug);
+        Ok(ranked)
     })
     .await
     .map_err(|e| format!("Task execution error: {}", e))?
@@ -683,7 +767,8 @@ pub async fn scan_available_exes_in_app(bundle_path: String) -> Result<Vec<Strin
             }
         }
     }
-    Ok(exes)
+    let ranked = rank_installed_executables(exes, app_slug);
+    Ok(ranked)
 }
 
 /// 13. Updates the target executable of an already packaged application bundle
