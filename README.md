@@ -123,6 +123,14 @@ swifter/
     ```
   - Utilize an existing local installation of **CrossOver** or **Whisky**.
 
+### macOS Gatekeeper Note ("App is damaged and can't be opened")
+Because Swifter is an open-source project distributed freely without a paid Apple Developer Certificate ($99/yr), macOS Gatekeeper flags unnotarized internet downloads as "damaged". The app is completely safe and intact.
+
+To resolve this, run this one command in your macOS **Terminal**:
+```bash
+xattr -cr /Applications/Swifter.app
+```
+*Alternatively: Go to **System Settings** → **Privacy & Security** → scroll down to Security → click **Open Anyway**.*
 ---
 
 ## Developer Guide
