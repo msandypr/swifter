@@ -6,7 +6,9 @@
     HardDrive,
     PackageCheck,
     Wrench,
-    FileCode
+    FileCode,
+    ShieldCheck,
+    AlertCircle
   } from 'lucide-svelte';
 </script>
 
@@ -123,6 +125,29 @@
       <p class="text-xs text-zinc-400 leading-relaxed pl-9">
         Unlike traditional Wine tools that clone 2 GB virtual C: drives for each game, Swifter creates a micro-prefix (~15 MB) using symlinks to shared base runtime files. Save data and user configurations in <code class="text-zinc-200 bg-zinc-800 px-1 py-0.5 rounded text-[11px]">AppData</code> remain strictly independent per game and can be accessed with one click via the <strong>Save Data</strong> button on the <strong>Shelf</strong>.
       </p>
+    </div>
+
+    <!-- Upstream Etiquette & Community Best Practices -->
+    <div class="glass-card rounded-2xl p-5 border border-zinc-800 bg-zinc-900/40 space-y-3">
+      <div class="flex items-center gap-3">
+        <div class="w-6 h-6 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center font-mono text-xs font-semibold text-zinc-200">
+          <ShieldCheck class="w-3.5 h-3.5 text-zinc-300" />
+        </div>
+        <h3 class="text-sm font-semibold text-zinc-100">Upstream Respect & Bug Reporting Etiquette</h3>
+      </div>
+      <div class="pl-9 space-y-2 text-xs text-zinc-400 leading-relaxed">
+        <p>
+          Swifter is an open-source packaging engine that bridges your game files with upstream compatibility runtimes (WineHQ, Gcenx, DXVK, MoltenVK). To maintain a respectful open-source community:
+        </p>
+        <div class="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1.5 text-[11px]">
+          <div>
+            <strong class="text-zinc-200">Report to Swifter GitHub:</strong> Packaging failures, launcher script issues, micro-prefix symlink bugs, or UI errors.
+          </div>
+          <div>
+            <strong class="text-zinc-200">Upstream Wine/DXVK:</strong> Game-specific rendering glitches or missing DirectX capabilities are inherent to Wine/Metal translation. <strong>Please do NOT file Swifter wrapper tickets on WineHQ or Gcenx bug trackers.</strong>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

@@ -202,6 +202,22 @@ bun run check
 - **Trademarks:** macOS, Metal, and Finder are trademarks of Apple Inc. Windows and DirectX are trademarks of Microsoft Corporation. CrossOver is a trademark of CodeWeavers, Inc. All other trademarks are the property of their respective owners.
 
 ---
+## Upstream Etiquette & Bug Reporting
+
+Swifter is an open-source packaging engine and micro-prefix manager. It bridges user game files with upstream compatibility runtimes (**WineHQ**, **Gcenx**, **DXVK**, **MoltenVK**). To maintain a healthy and respectful open-source ecosystem:
+
+- **Report to Swifter Issues ([GitHub Issues](https://github.com/msandypr/swifter/issues)):**
+  - Application packaging errors, Info.plist generation issues, or missing executable permissions.
+  - Micro-prefix allocation, directory symlinking, or launcher generation bugs.
+  - Icon extraction failures, metadata inaccuracies, or frontend UI defects.
+  - In-app runtime downloader, staging, or uninstallation issues.
+
+- **Upstream Wine & In-Game Compatibility:**
+  - Game-specific rendering glitches, missing DirectX/OpenGL features, or game engine crashes are inherent to the underlying translation layers (Wine, DXVK, and Apple Metal).
+  - **Please do NOT file Swifter packaging issues on WineHQ, CodeWeavers, or Gcenx bug trackers.** Upstream maintainers dedicate immense volunteer time to core translation work and cannot provide technical support for third-party wrapper wrappers.
+
+---
+
 
 ## Author
 
