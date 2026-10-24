@@ -114,7 +114,7 @@
 
       <!-- Runtime Details or Install Callout -->
       {#if runtimeStatus?.is_installed}
-        <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-2 text-xs">
+        <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-2.5 text-xs">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
             <div>
               <span class="text-zinc-500">Provider:</span>
@@ -126,10 +126,17 @@
             </div>
           </div>
 
-          <!-- If installed via Swifter Internal, offer remove button -->
-          {#if runtimeStatus.runtime_name?.includes('Swifter')}
+          {#if runtimeStatus.provider_upstream}
+            <div class="pt-1.5 border-t border-zinc-800/80 text-[11px] text-zinc-400 flex flex-col sm:flex-row sm:items-center gap-1">
+              <span class="text-zinc-500 font-medium shrink-0">Upstream Origin:</span>
+              <span class="font-mono text-zinc-300 truncate" title={runtimeStatus.provider_upstream}>{runtimeStatus.provider_upstream}</span>
+            </div>
+          {/if}
+
+          <!-- If downloaded to Swifter runtime directory, offer remove button -->
+          {#if runtimeStatus.runtime_path?.includes('/Swifter/runtimes/wine')}
             <div class="pt-2 border-t border-zinc-800/80 flex items-center justify-between">
-              <span class="text-[11px] text-zinc-500">Installed in Swifter Application Support</span>
+              <span class="text-[11px] text-zinc-500">Stored in Swifter Application Support</span>
               <button
                 onclick={onRemoveRequest}
                 class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-rose-500/20 transition-all active:scale-95 cursor-pointer"
@@ -147,7 +154,7 @@
             <div class="space-y-1">
               <div class="font-medium text-zinc-200">Wine runtime is missing</div>
               <p class="text-[11px] text-zinc-400 leading-relaxed">
-                You can download Swifter's official pre-compiled portable runtime (~182 MB), or install via Homebrew in one line.
+                Download the official open-source WineHQ build maintained by Gcenx (~182 MB from GitHub releases), or install via Homebrew.
               </p>
             </div>
           </div>
@@ -158,7 +165,7 @@
               class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs active:scale-95 transition-all shadow-sm cursor-pointer"
             >
               <Download class="w-3.5 h-3.5" />
-              Install Swifter Runtime (~182 MB)
+              Install WineHQ Runtime (~182 MB)
             </button>
 
             <span class="text-xs text-zinc-500">or via Homebrew:</span>

@@ -21,9 +21,12 @@ pub struct RuntimeStatus {
     pub is_installed: bool,
     pub runtime_name: Option<String>,
     pub runtime_path: Option<String>,
+    pub provider_upstream: Option<String>,
     pub has_dxvk: bool,
     pub has_d3dmetal: bool,
 }
+
+const SWIFTER_USER_AGENT: &str = "Swifter/0.1.0 (+https://github.com/msandypr/swifter)";
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RuntimeDownloadProgress {
     pub stage: String,
@@ -336,22 +339,38 @@ pub async fn open_in_finder(path: String) -> Result<(), String> {
 pub async fn check_runtime_status() -> Result<RuntimeStatus, String> {
     match resolve_wine_binary() {
         Ok(bin_path) => {
-            let name = if bin_path.contains("Swifter") {
-                "Swifter Internal Runtime"
+            let (name, upstream) = if bin_path.contains("Swifter") {
+                (
+                    "WineHQ Devel (Gcenx macOS Package)",
+                    "WineHQ & Dean M. (Gcenx) — https://github.com/Gcenx/macOS_Wine_builds (LGPLv2.1+)"
+                )
             } else if bin_path.contains("Whisky") {
-                "Whisky Wine Runtime (GPTK)"
+                (
+                    "Whisky Wine Engine (Apple GPTK)",
+                    "Whisky App & Apple GPTK — https://github.com/Whisky-App/Whisky (GPLv3)"
+                )
             } else if bin_path.contains("homebrew") || bin_path.contains("usr/local") {
-                "Homebrew Wine"
+                (
+                    "Homebrew Wine",
+                    "Homebrew Cask wine-stable / WineHQ (LGPLv2.1+)"
+                )
             } else if bin_path.contains("CrossOver") {
-                "CrossOver Runtime"
+                (
+                    "CrossOver Wine (CodeWeavers)",
+                    "CodeWeavers CrossOver (Locally Installed)"
+                )
             } else {
-                "System Wine"
+                (
+                    "System Wine",
+                    "Local PATH binary"
+                )
             };
 
             Ok(RuntimeStatus {
                 is_installed: true,
                 runtime_name: Some(name.to_string()),
                 runtime_path: Some(bin_path),
+                provider_upstream: Some(upstream.to_string()),
                 has_dxvk: true,
                 has_d3dmetal: true,
             })
@@ -360,6 +379,7 @@ pub async fn check_runtime_status() -> Result<RuntimeStatus, String> {
             is_installed: false,
             runtime_name: None,
             runtime_path: None,
+            provider_upstream: None,
             has_dxvk: false,
             has_d3dmetal: false,
         }),
@@ -379,7 +399,9 @@ pub async fn install_swifter_runtime(app: tauri::AppHandle) -> Result<String, St
         let _ = std::fs::create_dir_all(&runtimes_dir);
         let _ = std::fs::create_dir_all(&cache_dir);
 
+        let tar_part = cache_dir.join("wine-devel-osx64.tar.xz.part");
         let tar_dest = cache_dir.join("wine-devel-osx64.tar.xz");
+        let _ = std::fs::remove_file(&tar_part);
         let _ = std::fs::remove_file(&tar_dest);
         let download_url = "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.18/wine-devel-11.18-osx64.tar.xz";
         let total_bytes: u64 = 190974384;
@@ -391,17 +413,19 @@ pub async fn install_swifter_runtime(app: tauri::AppHandle) -> Result<String, St
             downloaded_mb: 0.0,
             total_mb,
             speed_mb: 0.0,
-            message: "Connecting to GitHub releases...".to_string(),
+            message: "Connecting to GitHub releases (Gcenx/macOS_Wine_builds)...".to_string(),
         });
 
-        // Spawn curl in background
+        // Spawn curl in background with explicit User-Agent
         let mut child = Command::new("/usr/bin/curl")
             .arg("-L")
             .arg("-f")
+            .arg("-A")
+            .arg(SWIFTER_USER_AGENT)
             .arg("--retry")
             .arg("3")
             .arg("-o")
-            .arg(&tar_dest)
+            .arg(&tar_part)
             .arg(download_url)
             .spawn()
             .map_err(|e| format!("Failed to execute curl: {}", e))?;
@@ -411,6 +435,7 @@ pub async fn install_swifter_runtime(app: tauri::AppHandle) -> Result<String, St
             match child.try_wait() {
                 Ok(Some(status)) => {
                     if !status.success() {
+                        let _ = std::fs::remove_file(&tar_part);
                         let err_msg = "Download interrupted or network connection failed.".to_string();
                         let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
                             stage: "error".to_string(),
@@ -425,7 +450,7 @@ pub async fn install_swifter_runtime(app: tauri::AppHandle) -> Result<String, St
                     break;
                 }
                 Ok(None) => {
-                    let current_bytes = std::fs::metadata(&tar_dest).map(|m| m.len()).unwrap_or(0);
+                    let current_bytes = std::fs::metadata(&tar_part).map(|m| m.len()).unwrap_or(0);
                     let downloaded_mb = current_bytes as f64 / (1024.0 * 1024.0);
                     let percent = ((current_bytes as f64 / total_bytes as f64) * 100.0).min(99.0);
                     let speed_mb = ((current_bytes.saturating_sub(prev_bytes)) as f64 / 0.5) / (1024.0 * 1024.0);
@@ -443,10 +468,20 @@ pub async fn install_swifter_runtime(app: tauri::AppHandle) -> Result<String, St
                     std::thread::sleep(std::time::Duration::from_millis(500));
                 }
                 Err(e) => {
+                    let _ = std::fs::remove_file(&tar_part);
                     return Err(format!("Process monitoring error: {}", e));
                 }
             }
         }
+
+        // Verify downloaded archive integrity before extraction
+        let downloaded_len = std::fs::metadata(&tar_part).map(|m| m.len()).unwrap_or(0);
+        if downloaded_len < 150_000_000 {
+            let _ = std::fs::remove_file(&tar_part);
+            return Err("Downloaded archive is incomplete or truncated.".to_string());
+        }
+        std::fs::rename(&tar_part, &tar_dest)
+            .map_err(|e| format!("Failed to finalize downloaded archive: {}", e))?;
 
         // Stage 2: Extracting
         let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
@@ -546,6 +581,13 @@ pub async fn install_swifter_runtime(app: tauri::AppHandle) -> Result<String, St
             let _ = std::fs::set_permissions(&wine64_bin, std::fs::Permissions::from_mode(0o755));
         }
 
+        // Strip macOS Gatekeeper quarantine extended attribute from extracted Wine runtime
+        let _ = Command::new("/usr/bin/xattr")
+            .arg("-dr")
+            .arg("com.apple.quarantine")
+            .arg(&target_wine_dir)
+            .output();
+
         let _ = std::fs::remove_dir_all(&stage_dir);
         let _ = std::fs::remove_file(&tar_dest);
 
@@ -560,34 +602,61 @@ pub async fn install_swifter_runtime(app: tauri::AppHandle) -> Result<String, St
         });
 
         let dxvk_url = "https://github.com/Gcenx/DXVK-macOS/releases/download/v1.10.3-20230507-repack/dxvk-macOS-async-v1.10.3-20230507-repack.tar.gz";
+        let dxvk_part = cache_dir.join("dxvk-macOS.tar.gz.part");
         let dxvk_tar = cache_dir.join("dxvk-macOS.tar.gz");
-        if Command::new("/usr/bin/curl").arg("-L").arg("-f").arg("-o").arg(&dxvk_tar).arg(dxvk_url).status().map(|s| s.success()).unwrap_or(false) {
-            let dxvk_stage = cache_dir.join("dxvk_stage");
-            let _ = std::fs::remove_dir_all(&dxvk_stage);
-            let _ = std::fs::create_dir_all(&dxvk_stage);
-            if Command::new("/usr/bin/tar").arg("-xzf").arg(&dxvk_tar).arg("-C").arg(&dxvk_stage).status().map(|s| s.success()).unwrap_or(false) {
-                let shared_runtime = prefix_mgr::get_shared_runtime_dir();
-                let sys32 = shared_runtime.join("drive_c/windows/system32");
-                let syswow = shared_runtime.join("drive_c/windows/syswow64");
-                let _ = std::fs::create_dir_all(&sys32);
-                let _ = std::fs::create_dir_all(&syswow);
+        let _ = std::fs::remove_file(&dxvk_part);
+        let _ = std::fs::remove_file(&dxvk_tar);
 
-                for entry in walkdir::WalkDir::new(&dxvk_stage).into_iter().filter_map(|e| e.ok()) {
-                    if entry.file_type().is_file() && entry.path().extension().and_then(|s| s.to_str()).map(|e| e == "dll").unwrap_or(false) {
-                        let path_str = entry.path().to_string_lossy();
-                        let filename = entry.file_name();
-                        if path_str.contains("x64") {
-                            let _ = std::fs::copy(entry.path(), sys32.join(filename));
-                        } else if path_str.contains("x32") {
-                            let _ = std::fs::copy(entry.path(), syswow.join(filename));
+        let dxvk_curl = Command::new("/usr/bin/curl")
+            .arg("-L")
+            .arg("-f")
+            .arg("-A")
+            .arg(SWIFTER_USER_AGENT)
+            .arg("-o")
+            .arg(&dxvk_part)
+            .arg(dxvk_url)
+            .status();
+
+        if let Ok(s) = dxvk_curl {
+            if s.success() {
+                let dxvk_len = std::fs::metadata(&dxvk_part).map(|m| m.len()).unwrap_or(0);
+                if dxvk_len > 1_000_000 {
+                    let _ = std::fs::rename(&dxvk_part, &dxvk_tar);
+                    let dxvk_stage = cache_dir.join("dxvk_stage");
+                    let _ = std::fs::remove_dir_all(&dxvk_stage);
+                    let _ = std::fs::create_dir_all(&dxvk_stage);
+                    if Command::new("/usr/bin/tar").arg("-xzf").arg(&dxvk_tar).arg("-C").arg(&dxvk_stage).status().map(|s| s.success()).unwrap_or(false) {
+                        let shared_runtime = prefix_mgr::get_shared_runtime_dir();
+                        let sys32 = shared_runtime.join("drive_c/windows/system32");
+                        let syswow = shared_runtime.join("drive_c/windows/syswow64");
+                        let _ = std::fs::create_dir_all(&sys32);
+                        let _ = std::fs::create_dir_all(&syswow);
+
+                        for entry in walkdir::WalkDir::new(&dxvk_stage).into_iter().filter_map(|e| e.ok()) {
+                            if entry.file_type().is_file() && entry.path().extension().and_then(|s| s.to_str()).map(|e| e == "dll").unwrap_or(false) {
+                                let path_str = entry.path().to_string_lossy();
+                                let filename = entry.file_name();
+                                if path_str.contains("x64") {
+                                    let _ = std::fs::copy(entry.path(), sys32.join(filename));
+                                } else if path_str.contains("x32") {
+                                    let _ = std::fs::copy(entry.path(), syswow.join(filename));
+                                }
+                            }
                         }
+
+                        // Strip quarantine from shared runtime
+                        let _ = Command::new("/usr/bin/xattr")
+                            .arg("-dr")
+                            .arg("com.apple.quarantine")
+                            .arg(&shared_runtime)
+                            .output();
                     }
+                    let _ = std::fs::remove_dir_all(&dxvk_stage);
+                    let _ = std::fs::remove_file(&dxvk_tar);
                 }
             }
-            let _ = std::fs::remove_dir_all(&dxvk_stage);
-            let _ = std::fs::remove_file(&dxvk_tar);
         }
-
+        let _ = std::fs::remove_file(&dxvk_part);
         // Stage 5: Completed
         let success_msg = format!("Wine runtime and DXVK installed and verified at {}", target_wine_dir.display());
         let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {

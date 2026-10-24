@@ -23,6 +23,8 @@ const ANTICHEAT_SIGNATURES: &[(&str, &str)] = &[
     ("ace_loader.sys", "Tencent Anti-Cheat Expert"),
     ("blackcipher.aes", "Nexon BlackCipher"),
     ("gamemon.des", "nProtect GameGuard"),
+    ("dbdata.dll", "Denuvo Anti-Tamper (unsupported on Wine)"),
+    ("denuvo64.dll", "Denuvo Anti-Tamper (unsupported on Wine)"),
 ];
 
 /// Inspects a PE binary file and extracts architecture and product metadata

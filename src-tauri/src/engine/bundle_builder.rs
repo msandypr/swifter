@@ -182,9 +182,15 @@ pub fn build_application_bundle(options: BuildAppOptions) -> Result<PathBuf, Str
     // 7. Ensure isolated micro-prefix is provisioned
     prefix_mgr::ensure_micro_prefix(&app_slug)?;
 
+    // 8. Strip macOS Gatekeeper quarantine attribute so .app opens without developer block
+    let _ = std::process::Command::new("/usr/bin/xattr")
+        .arg("-dr")
+        .arg("com.apple.quarantine")
+        .arg(&bundle_path)
+        .output();
+
     Ok(bundle_path)
 }
-
 fn get_default_applications_dir() -> Result<PathBuf, String> {
     let main_apps = PathBuf::from("/Applications");
     // Check if /Applications is writable

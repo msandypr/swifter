@@ -38,6 +38,7 @@ export interface RuntimeStatus {
   is_installed: boolean;
   runtime_name?: string | null;
   runtime_path?: string | null;
+  provider_upstream?: string | null;
   has_dxvk: boolean;
   has_d3dmetal: boolean;
 }

@@ -46,6 +46,59 @@
     </div>
   </div>
 
+  <!-- Open-Source Upstream Credits -->
+  <div class="space-y-3">
+    <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider px-1">
+      Open-Source Credits & Upstream Projects
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <!-- WineHQ & Gcenx -->
+      <div class="glass-card rounded-xl p-3.5 border border-zinc-800 bg-zinc-900/30 space-y-1">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-zinc-200">WineHQ & Gcenx</span>
+          <span class="text-[10px] font-mono text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">LGPL v2.1+</span>
+        </div>
+        <p class="text-[11px] text-zinc-400 leading-relaxed">
+          Windows API compatibility layer and official macOS binary builds maintained by Dean M. (Gcenx).
+        </p>
+      </div>
+
+      <!-- DXVK & MoltenVK -->
+      <div class="glass-card rounded-xl p-3.5 border border-zinc-800 bg-zinc-900/30 space-y-1">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-zinc-200">DXVK & MoltenVK</span>
+          <span class="text-[10px] font-mono text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">zlib / Apache-2.0</span>
+        </div>
+        <p class="text-[11px] text-zinc-400 leading-relaxed">
+          DirectX 9–11 to Vulkan translation by Philip Rebohle, running over Apple Metal via MoltenVK.
+        </p>
+      </div>
+
+      <!-- Tauri & Rust -->
+      <div class="glass-card rounded-xl p-3.5 border border-zinc-800 bg-zinc-900/30 space-y-1">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-zinc-200">Tauri & Rust</span>
+          <span class="text-[10px] font-mono text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">MIT / Apache-2.0</span>
+        </div>
+        <p class="text-[11px] text-zinc-400 leading-relaxed">
+          Memory-safe, high-performance native desktop harness and cross-platform backend runtime.
+        </p>
+      </div>
+
+      <!-- Svelte & Tailwind CSS -->
+      <div class="glass-card rounded-xl p-3.5 border border-zinc-800 bg-zinc-900/30 space-y-1">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-zinc-200">Svelte 5 & Tailwind</span>
+          <span class="text-[10px] font-mono text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">MIT</span>
+        </div>
+        <p class="text-[11px] text-zinc-400 leading-relaxed">
+          Modern reactive UI layer with native macOS frosted glass and minimalist monochrome design.
+        </p>
+      </div>
+    </div>
+  </div>
+
   <!-- Links & Repository -->
   <div class="glass-card rounded-2xl p-4 border border-zinc-800 bg-zinc-900/40 flex items-center justify-between">
     <div class="flex items-center gap-3">
@@ -63,6 +116,22 @@
       class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-xs font-medium text-zinc-200 border border-zinc-700 transition-all"
     >
       <span>GitHub</span>
+      <ExternalLink class="w-3.5 h-3.5 text-zinc-400" />
+    </button>
+  </div>
+
+  <!-- License Card -->
+  <div class="glass-card rounded-2xl p-4 border border-zinc-800 bg-zinc-900/40 flex items-center justify-between">
+    <div class="space-y-0.5">
+      <div class="text-xs font-semibold text-zinc-200">Open-Source License</div>
+      <div class="text-zinc-400 text-[11px]">GNU General Public License v3.0 (GPLv3)</div>
+    </div>
+
+    <button
+      onclick={openGithub}
+      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-xs font-medium text-zinc-200 border border-zinc-700 transition-all cursor-pointer"
+    >
+      <span>GPL-3.0</span>
       <ExternalLink class="w-3.5 h-3.5 text-zinc-400" />
     </button>
   </div>
