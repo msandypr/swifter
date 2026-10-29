@@ -41,6 +41,7 @@ export interface RuntimeStatus {
   provider_upstream?: string | null;
   has_dxvk: boolean;
   has_d3dmetal: boolean;
+  has_winemetalgl?: boolean;
 }
 
 export interface RuntimeDownloadProgress {

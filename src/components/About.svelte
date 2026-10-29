@@ -26,7 +26,7 @@
 
     <div>
       <h2 class="text-xl font-bold text-zinc-100">Swifter</h2>
-      <div class="text-xs font-mono text-zinc-400 mt-0.5">Version 0.1.0</div>
+      <div class="text-xs font-mono text-zinc-400 mt-0.5">Version 0.2.0</div>
     </div>
 
     <p class="text-xs text-zinc-400 max-w-md leading-relaxed">
@@ -74,6 +74,17 @@
           DirectX 9–11 to Vulkan translation by Philip Rebohle, running over Apple Metal via MoltenVK.
         </p>
       </div>
+      <!-- WineMetalGL -->
+      <div class="glass-card rounded-xl p-3.5 border border-zinc-800 bg-zinc-900/30 space-y-1">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-zinc-200">WineMetalGL</span>
+          <span class="text-[10px] font-mono text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">GPL v2+</span>
+        </div>
+        <p class="text-[11px] text-zinc-400 leading-relaxed">
+          OpenGL 1.0–4.6 to Apple Metal translation layer by MetalSharp, enabling modern OpenGL on Apple Silicon.
+        </p>
+      </div>
+
 
       <!-- Tauri & Rust -->
       <div class="glass-card rounded-xl p-3.5 border border-zinc-800 bg-zinc-900/30 space-y-1">

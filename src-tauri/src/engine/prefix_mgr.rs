@@ -87,7 +87,7 @@ pub fn ensure_micro_prefix(app_slug: &str) -> Result<PathBuf, String> {
 
     let user_reg = prefix_dir.join("user.reg");
     if !user_reg.exists() {
-        let minimal_user_reg = "WINE REGISTRY Version 2\n;; All keys relative to \\\\User\n\n#arch=win64\n\n[Software\\\\Wine\\\\Direct3D]\n\"MaxVersionGL\"=dword:00040006\n\n";
+        let minimal_user_reg = "WINE REGISTRY Version 2\n;; All keys relative to \\\\User\n\n#arch=win64\n\n[Software\\\\Wine\\\\Direct3D]\n\"MaxVersionGL\"=dword:00040006\n\n[Software\\\\Wine\\\\DllOverrides]\n\"opengl32\"=\"native\"\n\n";
         let _ = fs::write(&user_reg, minimal_user_reg);
     } else if let Ok(c) = fs::read_to_string(&user_reg) {
         if c.contains("#arch=win32") {

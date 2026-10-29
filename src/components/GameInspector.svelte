@@ -283,8 +283,8 @@
       <!-- Vanilla Wine Option -->
       <label class="cursor-pointer relative flex flex-col p-4 rounded-xl border transition-all {selectedBackend === 'Vanilla' ? 'border-zinc-300 bg-zinc-800 text-zinc-100' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/30 text-zinc-400'}">
         <input type="radio" name="backend" value="Vanilla" bind:group={selectedBackend} class="sr-only" />
-        <span class="font-semibold text-sm text-zinc-200">Vanilla Wine</span>
-        <span class="text-xs text-zinc-400 mt-1">Built-in Wine translation + OpenGL Zink.</span>
+        <span class="font-semibold text-sm text-zinc-200">Vanilla Wine & OpenGL</span>
+        <span class="text-xs text-zinc-400 mt-1">Built-in Wine + WineMetalGL (OpenGL 1.0–4.6 via Metal).</span>
         {#if inspection.recommended_backend === 'Vanilla'}
           <span class="absolute top-2.5 right-2.5 px-1.5 py-0.5 text-[9px] rounded font-bold uppercase bg-zinc-700 text-zinc-200 border border-zinc-600">Recommended</span>
         {/if}

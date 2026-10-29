@@ -118,6 +118,7 @@ if [ "$BACKEND" = "D3DMetal" ]; then
 elif [ "$BACKEND" = "DXVK" ]; then
     export WINEDLLOVERRIDES="d3d11=n,b;d3d10core=n,b;d3d9=n,b;dxgi=b,n;${WINEDLLOVERRIDES}"
 fi
+export WINEDLLOVERRIDES="opengl32=n,b;${WINEDLLOVERRIDES}"
 
 if [ "$ENABLE_RETINA" = "1" ]; then
     export WINE_ENABLE_RETINA=1

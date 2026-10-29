@@ -210,6 +210,29 @@
         Apple's native translation engine translating DirectX 11/12 directly into Metal shading language with ESYNC and MSYNC synchronization support.
       </p>
     </div>
+    <!-- 4. WineMetalGL Translation Layer Card -->
+    <div class="glass-card rounded-2xl p-5 border border-zinc-800 bg-zinc-900/40 space-y-2">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <Database class="w-4 h-4 text-zinc-400" />
+          <h3 class="text-sm font-semibold text-zinc-100">WineMetalGL (OpenGL 1.0–4.6 via Metal)</h3>
+        </div>
+        {#if runtimeStatus?.has_winemetalgl}
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <CheckCircle2 class="w-3 h-3" />
+            Active & Ready
+          </span>
+        {:else}
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+            Available on Install
+          </span>
+        {/if}
+      </div>
+      <p class="text-xs text-zinc-400 leading-relaxed pl-6">
+        Translates OpenGL 1.0 through 4.6 and GLSL shaders directly into Apple Metal, allowing 2D/3D OpenGL titles (such as LibGDX, Godot, and GameMaker) to run natively on Apple Silicon.
+      </p>
+    </div>
+
 
     <!-- 4. Danger Zone / Remove All Runtimes -->
     <div class="glass-card rounded-2xl p-5 border border-zinc-800 bg-zinc-900/40 space-y-3">

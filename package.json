@@ -1,6 +1,6 @@
 {
   "name": "swifter",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "msandypr",
   "description": "Portable Windows (.exe) to Native macOS (.app) Packaging Engine",
   "type": "module",

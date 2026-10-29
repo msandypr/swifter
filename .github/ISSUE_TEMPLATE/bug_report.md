@@ -20,7 +20,7 @@ assignees: []
 ### 2. System Environment
 - **macOS Version:** [e.g. macOS 14.5 Sonoma, macOS 15.0 Sequoia]
 - **Hardware Architecture:** [Apple Silicon (M1/M2/M3/M4) or Intel]
-- **Swifter Version:** [e.g. v0.1.0]
+- **Swifter Version:** [e.g. v0.2.0]
 - **Wine Runtime Provider:** [WineHQ Devel (Gcenx) / Whisky / Homebrew / CrossOver]
 
 ### 3. Describe the Bug

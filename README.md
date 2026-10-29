@@ -10,7 +10,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-macOS%2012.0+-black?style=flat-square&logo=apple" alt="Platform" />
-  <img src="https://img.shields.io/badge/Version-v0.1.0-zinc?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v0.2.0-zinc?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/Framework-Tauri%20v2-24c8db?style=flat-square&logo=tauri&logoColor=white" alt="Tauri v2" />
   <img src="https://img.shields.io/badge/Frontend-Svelte%205-ff3e00?style=flat-square&logo=svelte&logoColor=white" alt="Svelte 5" />
   <img src="https://img.shields.io/badge/Backend-Rust%202024-black?style=flat-square&logo=rust&logoColor=white" alt="Rust" />
@@ -62,7 +62,7 @@ Users can select the appropriate graphics translation backend per application ba
 | :--- | :--- | :--- | :--- |
 | **DXVK** | DirectX 9, 10, 11 | Vulkan via MoltenVK | Unity 3D, Godot, and 3D indie games |
 | **Apple D3DMetal** | DirectX 11, 12 | Apple Metal (User-supplied GPTK) | DirectX 11/12 titles on Apple Silicon |
-| **WineD3D (Vanilla)** | DirectX 9, OpenGL | OpenGL / Metal via `wined3d` | 2D GameMaker, RPG Maker, and legacy utilities |
+| **WineD3D (Vanilla)** | DirectX 9, OpenGL | WineMetalGL (OpenGL 1.0–4.6 via Metal) & `wined3d` | 2D GameMaker, LibGDX, RPG Maker, and legacy utilities |
 
 ### 6. Automated Upstream Runtime Fetcher & BYOR
 Swifter does not bundle or redistribute Wine binaries within its repository or installer. To execute packaged applications, Swifter supports:
@@ -170,7 +170,7 @@ bun run tauri build
 
 Build artifacts are output to:
 - `src-tauri/target/release/bundle/macos/Swifter.app`
-- `src-tauri/target/release/bundle/dmg/Swifter_0.1.0_aarch64.dmg`
+- `src-tauri/target/release/bundle/dmg/Swifter_0.2.0_aarch64.dmg`
 
 ### Testing & Verification
 
@@ -205,6 +205,7 @@ bun run check
 ## Acknowledgments & Legal Disclaimer
 
 - **The Wine Project & CodeWeavers:** Running Windows software on macOS relies heavily on the ongoing engineering efforts of the **Wine Project**, **CodeWeavers**, and upstream macOS maintainers such as **Gcenx**. If you regularly run Windows applications or games on macOS, please consider supporting upstream Wine development by purchasing a [CrossOver](https://www.codeweavers.com/crossover) license.
+- **WineMetalGL (MetalSharp):** OpenGL 1.0–4.6 to Apple Metal translation layer developed by [MetalSharp](https://github.com/metalsharp/WineMetalGL), enabling modern OpenGL compatibility on Apple Silicon without depending on deprecated native macOS OpenGL frameworks.
 - **No Proprietary Redistribution:** Swifter does **not** host, bundle, redistribute, or modify proprietary binaries owned by CodeWeavers or Apple Inc. (such as Game Porting Toolkit / D3DMetal). The built-in runtime fetcher connects directly to public, open-source upstream repositories, and D3DMetal options require the user to supply those components legally on their own machine.
 - **Intended Use:** Swifter is built strictly for packaging legally obtained, DRM-free software, personal builds, and indie games. It does not bypass DRM, Steamworks, or anti-cheat protections.
 - **Trademarks:** macOS, Metal, and Finder are trademarks of Apple Inc. Windows and DirectX are trademarks of Microsoft Corporation. CrossOver is a trademark of CodeWeavers, Inc. All other trademarks are the property of their respective owners.
@@ -212,7 +213,7 @@ bun run check
 ---
 ## Upstream Etiquette & Bug Reporting
 
-Swifter is an open-source packaging engine and micro-prefix manager. It bridges user game files with upstream compatibility runtimes (**WineHQ**, **Gcenx**, **DXVK**, **MoltenVK**). To maintain a healthy and respectful open-source ecosystem:
+Swifter is an open-source packaging engine and micro-prefix manager. It bridges user game files with upstream compatibility runtimes (**WineHQ**, **Gcenx**, **DXVK**, **MoltenVK**, **WineMetalGL**). To maintain a healthy and respectful open-source ecosystem:
 
 - **Report to Swifter Issues ([GitHub Issues](https://github.com/msandypr/swifter/issues)):**
   - Application packaging errors, Info.plist generation issues, or missing executable permissions.

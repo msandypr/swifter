@@ -7,6 +7,7 @@ pub enum DetectedEngine {
     Godot,
     GameMaker,
     Unreal,
+    JavaLibGDX,
     Generic,
 }
 
@@ -17,6 +18,7 @@ impl DetectedEngine {
             DetectedEngine::Godot => "Godot",
             DetectedEngine::GameMaker => "GameMaker",
             DetectedEngine::Unreal => "Unreal",
+            DetectedEngine::JavaLibGDX => "Java (LibGDX / LWJGL)",
             DetectedEngine::Generic => "Generic",
         }
     }
@@ -27,6 +29,7 @@ impl DetectedEngine {
             DetectedEngine::Godot => "DXVK",
             DetectedEngine::GameMaker => "Vanilla",
             DetectedEngine::Unreal => "DXVK",
+            DetectedEngine::JavaLibGDX => "Vanilla",
             DetectedEngine::Generic => "DXVK",
         }
     }
@@ -103,6 +106,7 @@ pub fn detect_game_engine(folder: &Path) -> DetectedEngine {
     let mut has_godot_pck = false;
     let mut has_gamemaker_data = false;
     let mut has_unreal_engine = false;
+    let mut has_java_libgdx = false;
 
     for entry in WalkDir::new(folder)
         .max_depth(3)
@@ -128,6 +132,9 @@ pub fn detect_game_engine(folder: &Path) -> DetectedEngine {
             has_gamemaker_data = true;
         }
 
+        if file_name.ends_with(".jar") || file_name.contains("lwjgl") || file_name.contains("gdx") {
+            has_java_libgdx = true;
+        }
         if file_name == "engine" && entry.file_type().is_dir() {
             let binaries = path.join("Binaries");
             if binaries.exists() {
@@ -144,6 +151,8 @@ pub fn detect_game_engine(folder: &Path) -> DetectedEngine {
         DetectedEngine::GameMaker
     } else if has_unreal_engine {
         DetectedEngine::Unreal
+    } else if has_java_libgdx {
+        DetectedEngine::JavaLibGDX
     } else {
         DetectedEngine::Generic
     }
@@ -301,6 +310,21 @@ mod tests {
 
         let engine = detect_game_engine(&temp_dir);
         assert_eq!(engine, DetectedEngine::GameMaker);
+        assert_eq!(engine.default_recommended_backend(), "Vanilla");
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_engine_heuristics_java_libgdx() {
+        let temp_dir = std::env::temp_dir().join("swifter_test_java_libgdx");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(temp_dir.join("app")).unwrap();
+        fs::write(temp_dir.join("app/client.jar"), b"test").unwrap();
+        fs::write(temp_dir.join("game.exe"), b"test").unwrap();
+
+        let engine = detect_game_engine(&temp_dir);
+        assert_eq!(engine, DetectedEngine::JavaLibGDX);
         assert_eq!(engine.default_recommended_backend(), "Vanilla");
 
         let _ = fs::remove_dir_all(&temp_dir);
