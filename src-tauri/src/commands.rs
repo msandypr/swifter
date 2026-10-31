@@ -371,15 +371,17 @@ pub async fn check_runtime_status() -> Result<RuntimeStatus, String> {
             };
 
             let shared_runtime = prefix_mgr::get_shared_runtime_dir();
+            let has_dxvk = shared_runtime.join("drive_c/windows/system32/dxgi.dll").exists();
             let has_winemetalgl = shared_runtime.join("drive_c/windows/system32/opengl32.dll").exists();
+            let has_d3dmetal = cfg!(target_arch = "aarch64");
 
             Ok(RuntimeStatus {
                 is_installed: true,
                 runtime_name: Some(name.to_string()),
                 runtime_path: Some(bin_path),
                 provider_upstream: Some(upstream.to_string()),
-                has_dxvk: true,
-                has_d3dmetal: true,
+                has_dxvk,
+                has_d3dmetal,
                 has_winemetalgl,
             })
         }
@@ -1056,4 +1058,50 @@ pub async fn remove_all_runtimes() -> Result<(), String> {
     }
 
     Ok(())
+}
+
+/// 16. Opens native macOS file picker dialog to choose an .exe file or game folder
+#[tauri::command]
+pub async fn pick_file_or_folder() -> Result<Option<String>, String> {
+    tokio::task::spawn_blocking(|| {
+        let script = r#"
+            ObjC.import('AppKit');
+            var app = $.NSApplication.sharedApplication;
+            app.setActivationPolicy($.NSApplicationActivationPolicyAccessory);
+            app.activateIgnoringOtherApps(true);
+            var panel = $.NSOpenPanel.openPanel;
+            panel.canChooseFiles = true;
+            panel.canChooseDirectories = true;
+            panel.allowsMultipleSelection = false;
+            panel.prompt = $("Select");
+            panel.message = $("Select Windows Executable or Game Folder");
+            var res = panel.runModal;
+            if (res == 1) {
+                panel.URLs.js[0].path.js;
+            } else {
+                "";
+            }
+        "#;
+
+        let output = std::process::Command::new("osascript")
+            .arg("-l")
+            .arg("JavaScript")
+            .arg("-e")
+            .arg(script)
+            .output()
+            .map_err(|e| format!("Failed to open file picker: {e}"))?;
+
+        if !output.status.success() {
+            return Ok(None);
+        }
+
+        let selected = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if selected.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(selected))
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }

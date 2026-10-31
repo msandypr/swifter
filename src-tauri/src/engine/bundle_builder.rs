@@ -227,6 +227,8 @@ fn generate_info_plist(app_slug: &str, app_name: &str) -> String {
     <string>com.swifter.app.{}</string>
     <key>CFBundleName</key>
     <string>{}</string>
+    <key>CFBundleDisplayName</key>
+    <string>{}</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -235,10 +237,12 @@ fn generate_info_plist(app_slug: &str, app_name: &str) -> String {
     <string>12.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>LSUIElement</key>
+    <true/>
 </dict>
 </plist>
 "#,
-        app_slug, app_name
+        app_slug, app_name, app_name
     )
 }
 

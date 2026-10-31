@@ -119,3 +119,7 @@ export async function uninstallPackagedApp(bundlePath: string): Promise<void> {
 export async function removeAllRuntimes(): Promise<void> {
   await invoke('remove_all_runtimes');
 }
+
+export async function pickFileOrFolder(): Promise<string | null> {
+  return await invoke<string | null>('pick_file_or_folder');
+}

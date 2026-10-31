@@ -24,6 +24,7 @@ pub fn run() {
             commands::update_app_target_exe,
             commands::uninstall_packaged_app,
             commands::remove_all_runtimes,
+            commands::pick_file_or_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Swifter application");

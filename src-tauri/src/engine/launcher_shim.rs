@@ -87,7 +87,7 @@ if [ -z "$WINE_BIN" ]; then
 fi
 
 if [ -z "$WINE_BIN" ]; then
-    osascript -e 'display alert "Wine Runtime Not Found" message "Swifter needs a Wine runtime to run this application.\n\nPlease install Wine or use Swifter Requirements tab." as critical'
+    osascript -e 'display alert "Wine Runtime Not Found" message "Swifter needs a Wine runtime to run this application.\n\nPlease install Wine in Swifter Settings." as critical'
     exit 1
 fi
 
