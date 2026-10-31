@@ -24,22 +24,19 @@
   import {
     Package,
     Library,
-    BookOpen,
     Info,
-    Terminal,
     X,
     AlertCircle,
     Download,
     CheckCircle2,
     Settings,
     Trash2,
-    ShieldAlert,
     AlertTriangle,
     ChevronDown,
     ChevronUp
   } from 'lucide-svelte';
 
-  type ActiveTab = 'packer' | 'shelf' | 'settings' | 'guide' | 'about';
+  type ActiveTab = 'packer' | 'shelf' | 'settings' | 'about';
 
   let activeTab = $state<ActiveTab>('packer');
   let inspection = $state<SwifterInspection | null>(null);
@@ -257,23 +254,22 @@
   <div class="px-8 pt-4 pb-2 flex items-center justify-center shrink-0">
     <div class="flex items-center p-1 rounded-xl glass-card border border-zinc-800 bg-zinc-900/60 shadow-sm">
       <!-- Integrated Brand Header -->
-      <div class="flex items-center gap-2 pl-2 pr-3 py-1 border-r border-zinc-800 mr-1 select-none">
+      <div class="flex items-center px-2 py-1 border-r border-zinc-800 mr-1 select-none">
         <img
           src="/logo-swifter.png"
           alt="Swifter"
           class="w-5 h-5 rounded object-contain"
         />
-        <span class="text-xs font-semibold text-zinc-100 tracking-tight">Swifter</span>
       </div>
 
-      <!-- Segmented Buttons with 0px Geometry Shift -->
+      <!-- Segmented Buttons -->
       <div class="flex items-center space-x-1">
         <button
           onclick={() => (activeTab = 'packer')}
           class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 ease-out cursor-pointer {activeTab === 'packer' ? 'bg-zinc-800 text-zinc-100 border-zinc-700 shadow-xs' : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}"
         >
           <Package class="w-3.5 h-3.5 text-zinc-400" />
-          Packer
+          Convert
         </button>
 
         <button
@@ -281,31 +277,15 @@
           class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 ease-out cursor-pointer {activeTab === 'shelf' ? 'bg-zinc-800 text-zinc-100 border-zinc-700 shadow-xs' : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}"
         >
           <Library class="w-3.5 h-3.5 text-zinc-400" />
-          Shelf
+          Library
         </button>
 
-        <!-- Settings Tab with live status dot -->
         <button
           onclick={() => (activeTab = 'settings')}
           class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 ease-out cursor-pointer {activeTab === 'settings' ? 'bg-zinc-800 text-zinc-100 border-zinc-700 shadow-xs' : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}"
         >
           <Settings class="w-3.5 h-3.5 text-zinc-400" />
           <span>Settings</span>
-          {#if runtimeStatus}
-            {#if runtimeStatus.is_installed}
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]"></span>
-            {:else}
-              <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.7)] animate-pulse"></span>
-            {/if}
-          {/if}
-        </button>
-
-        <button
-          onclick={() => (activeTab = 'guide')}
-          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 ease-out cursor-pointer {activeTab === 'guide' ? 'bg-zinc-800 text-zinc-100 border-zinc-700 shadow-xs' : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}"
-        >
-          <BookOpen class="w-3.5 h-3.5 text-zinc-400" />
-          Guide
         </button>
 
         <button
@@ -319,31 +299,6 @@
     </div>
   </div>
 
-  <!-- Runtime Notice Banner (If Wine Not Installed) -->
-  {#if runtimeStatus && !runtimeStatus.is_installed && activeTab === 'packer'}
-    <div class="mx-8 mt-2 p-3.5 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between text-xs space-x-3">
-      <div class="flex items-center gap-2.5 text-zinc-300">
-        <AlertTriangle class="w-4 h-4 text-zinc-400 shrink-0" />
-        <span>No Wine translation runtime detected on this Mac. Configure or download it in Settings.</span>
-      </div>
-
-      <div class="flex items-center gap-2 shrink-0">
-        <button
-          onclick={requestInstallRuntime}
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs active:scale-95 transition-all shadow-sm cursor-pointer"
-        >
-          <Download class="w-3.5 h-3.5" />
-          Download Runtime
-        </button>
-        <button
-          onclick={() => (activeTab = 'settings')}
-          class="px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs border border-zinc-700 transition-all cursor-pointer"
-        >
-          Settings
-        </button>
-      </div>
-    </div>
-  {/if}
 
   <!-- Global Error Banner -->
   {#if errorMessage}
@@ -362,8 +317,25 @@
   <div class="flex-1 overflow-y-auto relative flex flex-col items-center justify-start w-full px-6 py-4 transition-opacity duration-200">
     {#if activeTab === 'packer'}
       {#if !inspection}
-        <div class="my-auto w-full flex items-center justify-center py-8">
+        <div class="w-full max-w-2xl mx-auto flex flex-col space-y-6 py-4 items-center">
+          {#if runtimeStatus && !runtimeStatus.is_installed}
+            <div class="w-full p-3 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between text-xs shadow-sm">
+              <div class="flex items-center gap-2.5 text-zinc-300">
+                <AlertTriangle class="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Wine runtime is missing.</span>
+              </div>
+              <button
+                onclick={() => (activeTab = 'settings')}
+                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium border border-zinc-700 transition-all cursor-pointer active:scale-95 shrink-0"
+              >
+                <span>Open Settings</span>
+                <span class="text-zinc-500">→</span>
+              </button>
+            </div>
+          {/if}
+
           <Dropzone onSelectPath={handleInspectPath} {isAnalyzing} />
+          <Guide />
         </div>
       {:else}
         <GameInspector
@@ -384,8 +356,6 @@
         onRemoveRequest={requestRemoveRuntime}
         onRefresh={refreshRuntimeStatus}
       />
-    {:else if activeTab === 'guide'}
-      <Guide />
     {:else if activeTab === 'about'}
       <About />
     {/if}
@@ -721,6 +691,6 @@
 
   <!-- Center Bottom Version Footer -->
   <footer class="py-2.5 text-center text-[11px] text-zinc-500 font-mono select-none shrink-0 border-t border-white/[0.03]">
-    Swifter v0.1 • by msandypr
+    Swifter v0.2 • by msandypr
   </footer>
 </div>
