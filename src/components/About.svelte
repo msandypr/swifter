@@ -1,21 +1,72 @@
 <script lang="ts">
   import { openUrl } from '@tauri-apps/plugin-opener';
-  import { Info, ExternalLink, Heart, Sparkles } from 'lucide-svelte';
+  import { ExternalLink, Heart } from 'lucide-svelte';
 
-  async function openGithub() {
+  const credits = [
+    {
+      name: 'WineHQ & Gcenx',
+      who: 'Dean M. & WineHQ',
+      role: 'Windows compatibility layer and official macOS binary builds',
+      url: 'https://github.com/Gcenx/macOS_Wine_builds'
+    },
+    {
+      name: 'DXVK',
+      who: 'Philip Rebohle',
+      role: 'DirectX 9–11 to Vulkan translation layer',
+      url: 'https://github.com/doitsujin/dxvk'
+    },
+    {
+      name: 'MoltenVK',
+      who: 'The Khronos Group',
+      role: 'Vulkan graphics and compute driver over Apple Metal',
+      url: 'https://github.com/KhronosGroup/MoltenVK'
+    },
+    {
+      name: 'WineMetalGL',
+      who: 'MetalSharp',
+      role: 'OpenGL 1.0–4.6 to Apple Metal translation layer',
+      url: 'https://github.com/MetalSharp/WineMetalGL'
+    },
+    {
+      name: 'Tauri',
+      who: 'Tauri Apps',
+      role: 'Lightweight desktop harness and native OS bridge',
+      url: 'https://github.com/tauri-apps/tauri'
+    },
+    {
+      name: 'Rust',
+      who: 'Rust Foundation',
+      role: 'High-performance backend engine and PE binary analyzer',
+      url: 'https://www.rust-lang.org'
+    },
+    {
+      name: 'Svelte 5',
+      who: 'Rich Harris & Contributors',
+      role: 'Reactive frontend framework and UI state management',
+      url: 'https://github.com/sveltejs/svelte'
+    },
+    {
+      name: 'Tailwind CSS',
+      who: 'Tailwind Labs',
+      role: 'Utility-first styling and frosted glass design system',
+      url: 'https://tailwindcss.com'
+    }
+  ];
+
+  async function openLink(url: string) {
     try {
-      await openUrl('https://github.com/msandypr/swifter');
+      await openUrl(url);
     } catch {
-      window.open('https://github.com/msandypr/swifter', '_blank');
+      window.open(url, '_blank');
     }
   }
 
-  async function openAuthor() {
-    try {
-      await openUrl('https://github.com/msandypr');
-    } catch {
-      window.open('https://github.com/msandypr', '_blank');
-    }
+  function openGithub() {
+    openLink('https://github.com/msandypr/swifter');
+  }
+
+  function openAuthor() {
+    openLink('https://github.com/msandypr');
   }
 </script>
 
@@ -26,11 +77,11 @@
 
     <div>
       <h2 class="text-xl font-bold text-zinc-100">Swifter</h2>
-      <div class="text-xs font-mono text-zinc-400 mt-0.5">Version 0.2.0</div>
+      <div class="text-xs font-mono text-zinc-400 mt-0.5">Version 0.2</div>
     </div>
 
     <p class="text-xs text-zinc-400 max-w-md leading-relaxed">
-      A fast, lightweight utility for macOS that packages standalone Windows executables (.exe) and DRM-free indie games into native, ready-to-click macOS (.app) application bundles.
+      A fast, lightweight utility for macOS that packages standalone Windows executables (.exe) and applications into native, ready-to-click macOS (.app) application bundles.
     </p>
 
     <!-- Author Badge -->
@@ -47,66 +98,30 @@
   </div>
 
   <!-- Open-Source Upstream Credits -->
-  <div class="space-y-3">
+  <div class="space-y-2">
     <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider px-1">
-      Open-Source Credits & Upstream Projects
+      Open-Source Credits
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <!-- WineHQ & Gcenx -->
-      <div class="glass-card rounded-xl p-3.5 border border-zinc-800 bg-zinc-900/30 space-y-1">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold text-zinc-200">WineHQ & Gcenx</span>
-          <span class="text-[10px] font-mono text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">LGPL v2.1+</span>
+    <div class="glass-card rounded-2xl p-4 border border-zinc-800 bg-zinc-900/40 divide-y divide-zinc-800/60">
+      {#each credits as { name, who, role, url }}
+        <div class="flex items-center justify-between py-2.5 first:pt-0.5 last:pb-0.5 gap-3">
+          <div class="min-w-0 space-y-0.5">
+            <div class="flex items-center gap-2 text-xs">
+              <span class="font-medium text-zinc-100">{name}</span>
+              <span class="text-zinc-500 font-mono text-[11px] truncate">by {who}</span>
+            </div>
+            <p class="text-[11px] text-zinc-400 leading-relaxed truncate">{role}</p>
+          </div>
+          <button
+            onclick={() => openLink(url)}
+            class="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/80 transition-colors cursor-pointer active:scale-95 shrink-0"
+            title="Visit {name}"
+          >
+            <ExternalLink class="w-3.5 h-3.5" />
+          </button>
         </div>
-        <p class="text-[11px] text-zinc-400 leading-relaxed">
-          Windows API compatibility layer and official macOS binary builds maintained by Dean M. (Gcenx).
-        </p>
-      </div>
-
-      <!-- DXVK & MoltenVK -->
-      <div class="glass-card rounded-xl p-3.5 border border-zinc-800 bg-zinc-900/30 space-y-1">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold text-zinc-200">DXVK & MoltenVK</span>
-          <span class="text-[10px] font-mono text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">zlib / Apache-2.0</span>
-        </div>
-        <p class="text-[11px] text-zinc-400 leading-relaxed">
-          DirectX 9–11 to Vulkan translation by Philip Rebohle, running over Apple Metal via MoltenVK.
-        </p>
-      </div>
-      <!-- WineMetalGL -->
-      <div class="glass-card rounded-xl p-3.5 border border-zinc-800 bg-zinc-900/30 space-y-1">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold text-zinc-200">WineMetalGL</span>
-          <span class="text-[10px] font-mono text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">GPL v2+</span>
-        </div>
-        <p class="text-[11px] text-zinc-400 leading-relaxed">
-          OpenGL 1.0–4.6 to Apple Metal translation layer by MetalSharp, enabling modern OpenGL on Apple Silicon.
-        </p>
-      </div>
-
-
-      <!-- Tauri & Rust -->
-      <div class="glass-card rounded-xl p-3.5 border border-zinc-800 bg-zinc-900/30 space-y-1">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold text-zinc-200">Tauri & Rust</span>
-          <span class="text-[10px] font-mono text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">MIT / Apache-2.0</span>
-        </div>
-        <p class="text-[11px] text-zinc-400 leading-relaxed">
-          Memory-safe, high-performance native desktop harness and cross-platform backend runtime.
-        </p>
-      </div>
-
-      <!-- Svelte & Tailwind CSS -->
-      <div class="glass-card rounded-xl p-3.5 border border-zinc-800 bg-zinc-900/30 space-y-1">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold text-zinc-200">Svelte 5 & Tailwind</span>
-          <span class="text-[10px] font-mono text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">MIT</span>
-        </div>
-        <p class="text-[11px] text-zinc-400 leading-relaxed">
-          Modern reactive UI layer with native macOS frosted glass and minimalist monochrome design.
-        </p>
-      </div>
+      {/each}
     </div>
   </div>
 
