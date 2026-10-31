@@ -19,11 +19,13 @@
   let {
     runtimeStatus,
     onInstallRequest,
+    onInstallEnginesRequest,
     onRemoveRequest,
     onRefresh
   }: {
     runtimeStatus: RuntimeStatus | null;
     onInstallRequest: () => void;
+    onInstallEnginesRequest?: () => void;
     onRemoveRequest: () => void;
     onRefresh: () => void;
   } = $props();
@@ -162,7 +164,7 @@
           </div>
           {#if runtimeStatus?.is_installed && (!runtimeStatus?.has_dxvk || !runtimeStatus?.has_winemetalgl)}
             <button
-              onclick={onInstallRequest}
+              onclick={onInstallEnginesRequest || onInstallRequest}
               class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-[11px] font-medium border border-zinc-700 transition-all cursor-pointer active:scale-95"
             >
               <Download class="w-3 h-3 text-zinc-400" />

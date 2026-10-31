@@ -9,6 +9,7 @@
     openInFinder,
     checkRuntimeStatus,
     installSwifterRuntime,
+    installGraphicsEngines,
     removeSwifterRuntime,
     type SwifterInspection,
     type RuntimeStatus,
@@ -142,6 +143,33 @@
 
     try {
       const msg = await installSwifterRuntime();
+      runtimeInstallMsg = msg;
+      runtimeInstallSuccess = true;
+      await refreshRuntimeStatus();
+    } catch (err: unknown) {
+      runtimeInstallMsg = err instanceof Error ? err.message : String(err);
+      runtimeInstallSuccess = false;
+    } finally {
+      isInstallingRuntime = false;
+    }
+  }
+
+  async function handleInstallEngines() {
+    isInstallingRuntime = true;
+    isRuntimeModalOpen = true;
+    runtimeInstallSuccess = false;
+    runtimeInstallMsg = '';
+    runtimeProgress = {
+      stage: 'downloading',
+      percent: 10,
+      downloaded_mb: 0,
+      total_mb: 17.7,
+      speed_mb: 0,
+      message: 'Connecting to GitHub releases for DXVK & WineMetalGL...',
+    };
+
+    try {
+      const msg = await installGraphicsEngines();
       runtimeInstallMsg = msg;
       runtimeInstallSuccess = true;
       await refreshRuntimeStatus();
@@ -353,6 +381,7 @@
       <SettingsView
         {runtimeStatus}
         onInstallRequest={requestInstallRuntime}
+        onInstallEnginesRequest={handleInstallEngines}
         onRemoveRequest={requestRemoveRuntime}
         onRefresh={refreshRuntimeStatus}
       />
@@ -467,14 +496,21 @@
             </div>
             <div>
               <h3 class="text-sm font-semibold text-zinc-100">
-                {isInstallingRuntime ? 'Installing Wine Translation Runtime' : runtimeInstallSuccess ? 'Wine Runtime Ready' : 'Installation Notice'}
+                {isInstallingRuntime
+                  ? (runtimeProgress?.total_mb === 17.7 ? 'Installing Graphics Engines' : 'Installing Wine Translation Runtime')
+                  : runtimeInstallSuccess
+                  ? (runtimeProgress?.total_mb === 17.7 ? 'Graphics Engines Ready' : 'Wine Runtime Ready')
+                  : 'Installation Notice'}
               </h3>
               <p class="text-xs text-zinc-400">
-                {isInstallingRuntime ? 'Downloading and extracting portable package (~182 MB).' : runtimeInstallSuccess ? 'Swifter can now run all Windows applications.' : 'Download interrupted.'}
+                {isInstallingRuntime
+                  ? (runtimeProgress?.total_mb === 17.7 ? 'Downloading and configuring DXVK & WineMetalGL (~17.7 MB).' : 'Downloading and extracting portable package (~182 MB).')
+                  : runtimeInstallSuccess
+                  ? 'Graphics translation layers configured.'
+                  : 'Download interrupted.'}
               </p>
             </div>
           </div>
-
           {#if !isInstallingRuntime}
             <button onclick={() => (isRuntimeModalOpen = false)} class="text-zinc-400 hover:text-zinc-200 p-1 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer">
               <X class="w-4 h-4" />

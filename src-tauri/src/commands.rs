@@ -371,7 +371,8 @@ pub async fn check_runtime_status() -> Result<RuntimeStatus, String> {
             };
 
             let shared_runtime = prefix_mgr::get_shared_runtime_dir();
-            let has_dxvk = shared_runtime.join("drive_c/windows/system32/dxgi.dll").exists();
+            let has_dxvk = shared_runtime.join("drive_c/windows/system32/d3d11.dll").exists()
+                || shared_runtime.join("drive_c/windows/system32/dxgi.dll").exists();
             let has_winemetalgl = shared_runtime.join("drive_c/windows/system32/opengl32.dll").exists();
             let has_d3dmetal = cfg!(target_arch = "aarch64");
 
@@ -602,116 +603,145 @@ pub async fn install_swifter_runtime(app: tauri::AppHandle) -> Result<String, St
         let _ = std::fs::remove_dir_all(&stage_dir);
         let _ = std::fs::remove_file(&tar_dest);
 
-        // Stage 4: Install DXVK DirectX 10/11 Vulkan translation libraries into wine-shared
+        // Stage 4 & 5: Install DXVK and WineMetalGL
+        provision_dxvk_and_winemetalgl(&app, Some(&target_wine_dir))?;
+        // Stage 5: Completed
+        let success_msg = format!("Wine runtime, DXVK, and WineMetalGL installed and verified at {}", target_wine_dir.display());
         let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
-            stage: "configuring".to_string(),
+            stage: "completed".to_string(),
             percent: 100.0,
             downloaded_mb: total_mb,
             total_mb,
             speed_mb: 0.0,
-            message: "Configuring DXVK DirectX 10/11 translation libraries (~2.7 MB)...".to_string(),
+            message: success_msg.clone(),
         });
 
-        let dxvk_url = "https://github.com/Gcenx/DXVK-macOS/releases/download/v1.10.3-20230507-repack/dxvk-macOS-async-v1.10.3-20230507-repack.tar.gz";
-        let dxvk_part = cache_dir.join("dxvk-macOS.tar.gz.part");
-        let dxvk_tar = cache_dir.join("dxvk-macOS.tar.gz");
-        let _ = std::fs::remove_file(&dxvk_part);
-        let _ = std::fs::remove_file(&dxvk_tar);
+        Ok(success_msg)
+    })
+    .await
+    .map_err(|e| format!("Task execution error: {}", e))?
+}
 
-        let dxvk_curl = Command::new("/usr/bin/curl")
-            .arg("-L")
-            .arg("-f")
-            .arg("-A")
-            .arg(SWIFTER_USER_AGENT)
-            .arg("-o")
-            .arg(&dxvk_part)
-            .arg(dxvk_url)
-            .status();
+fn provision_dxvk_and_winemetalgl(
+    app: &tauri::AppHandle,
+    target_wine_dir: Option<&std::path::Path>,
+) -> Result<(), String> {
+    let cache_dir = dirs::cache_dir()
+        .unwrap_or_else(|| PathBuf::from("/tmp"))
+        .join("swifter");
+    let _ = std::fs::create_dir_all(&cache_dir);
 
-        if let Ok(s) = dxvk_curl {
-            if s.success() {
-                let dxvk_len = std::fs::metadata(&dxvk_part).map(|m| m.len()).unwrap_or(0);
-                if dxvk_len > 1_000_000 {
-                    let _ = std::fs::rename(&dxvk_part, &dxvk_tar);
-                    let dxvk_stage = cache_dir.join("dxvk_stage");
-                    let _ = std::fs::remove_dir_all(&dxvk_stage);
-                    let _ = std::fs::create_dir_all(&dxvk_stage);
-                    if Command::new("/usr/bin/tar").arg("-xzf").arg(&dxvk_tar).arg("-C").arg(&dxvk_stage).status().map(|s| s.success()).unwrap_or(false) {
-                        let shared_runtime = prefix_mgr::get_shared_runtime_dir();
-                        let sys32 = shared_runtime.join("drive_c/windows/system32");
-                        let syswow = shared_runtime.join("drive_c/windows/syswow64");
-                        let _ = std::fs::create_dir_all(&sys32);
-                        let _ = std::fs::create_dir_all(&syswow);
+    // 1. Download and install DXVK (~2.7 MB)
+    let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
+        stage: "configuring".to_string(),
+        percent: 30.0,
+        downloaded_mb: 2.7,
+        total_mb: 17.7,
+        speed_mb: 0.0,
+        message: "Configuring DXVK DirectX 9–11 translation libraries (~2.7 MB)...".to_string(),
+    });
 
-                        for entry in walkdir::WalkDir::new(&dxvk_stage).into_iter().filter_map(|e| e.ok()) {
-                            if entry.file_type().is_file() && entry.path().extension().and_then(|s| s.to_str()).map(|e| e == "dll").unwrap_or(false) {
-                                let path_str = entry.path().to_string_lossy();
-                                let filename = entry.file_name();
-                                if path_str.contains("x64") {
-                                    let _ = std::fs::copy(entry.path(), sys32.join(filename));
-                                } else if path_str.contains("x32") {
-                                    let _ = std::fs::copy(entry.path(), syswow.join(filename));
-                                }
+    let dxvk_url = "https://github.com/Gcenx/DXVK-macOS/releases/download/v1.10.3-20230507-repack/dxvk-macOS-async-v1.10.3-20230507-repack.tar.gz";
+    let dxvk_part = cache_dir.join("dxvk-macOS.tar.gz.part");
+    let dxvk_tar = cache_dir.join("dxvk-macOS.tar.gz");
+    let _ = std::fs::remove_file(&dxvk_part);
+    let _ = std::fs::remove_file(&dxvk_tar);
+
+    let dxvk_curl = Command::new("/usr/bin/curl")
+        .arg("-L")
+        .arg("-f")
+        .arg("-A")
+        .arg(SWIFTER_USER_AGENT)
+        .arg("-o")
+        .arg(&dxvk_part)
+        .arg(dxvk_url)
+        .status();
+
+    if let Ok(s) = dxvk_curl {
+        if s.success() {
+            let dxvk_len = std::fs::metadata(&dxvk_part).map(|m| m.len()).unwrap_or(0);
+            if dxvk_len > 1_000_000 {
+                let _ = std::fs::rename(&dxvk_part, &dxvk_tar);
+                let dxvk_stage = cache_dir.join("dxvk_stage");
+                let _ = std::fs::remove_dir_all(&dxvk_stage);
+                let _ = std::fs::create_dir_all(&dxvk_stage);
+                if Command::new("/usr/bin/tar").arg("-xzf").arg(&dxvk_tar).arg("-C").arg(&dxvk_stage).status().map(|s| s.success()).unwrap_or(false) {
+                    let shared_runtime = prefix_mgr::get_shared_runtime_dir();
+                    let sys32 = shared_runtime.join("drive_c/windows/system32");
+                    let syswow = shared_runtime.join("drive_c/windows/syswow64");
+                    let _ = std::fs::create_dir_all(&sys32);
+                    let _ = std::fs::create_dir_all(&syswow);
+
+                    for entry in walkdir::WalkDir::new(&dxvk_stage).into_iter().filter_map(|e| e.ok()) {
+                        if entry.file_type().is_file() && entry.path().extension().and_then(|s| s.to_str()).map(|e| e == "dll").unwrap_or(false) {
+                            let path_str = entry.path().to_string_lossy();
+                            let filename = entry.file_name();
+                            if path_str.contains("x64") {
+                                let _ = std::fs::copy(entry.path(), sys32.join(filename));
+                            } else if path_str.contains("x32") {
+                                let _ = std::fs::copy(entry.path(), syswow.join(filename));
                             }
                         }
-
-                        // Strip quarantine from shared runtime
-                        let _ = Command::new("/usr/bin/xattr")
-                            .arg("-dr")
-                            .arg("com.apple.quarantine")
-                            .arg(&shared_runtime)
-                            .output();
                     }
-                    let _ = std::fs::remove_dir_all(&dxvk_stage);
-                    let _ = std::fs::remove_file(&dxvk_tar);
+
+                    let _ = Command::new("/usr/bin/xattr")
+                        .arg("-dr")
+                        .arg("com.apple.quarantine")
+                        .arg(&shared_runtime)
+                        .output();
                 }
+                let _ = std::fs::remove_dir_all(&dxvk_stage);
+                let _ = std::fs::remove_file(&dxvk_tar);
             }
         }
-        let _ = std::fs::remove_file(&dxvk_part);
-        // Stage 5: Install WineMetalGL OpenGL 1.0–4.6 Metal translation layer
-        let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
-            stage: "configuring".to_string(),
-            percent: 100.0,
-            downloaded_mb: total_mb,
-            total_mb,
-            speed_mb: 0.0,
-            message: "Configuring WineMetalGL OpenGL-to-Metal translation layer (~15 MB)...".to_string(),
-        });
+    }
+    let _ = std::fs::remove_file(&dxvk_part);
 
-        let winemetalgl_url = "https://github.com/metalsharp/WineMetalGL/releases/download/winemetalgl-3.7.0/winemetalgl-3.7.0-x86_64.tar.gz";
-        let winemetalgl_part = cache_dir.join("winemetalgl.tar.gz.part");
-        let winemetalgl_tar = cache_dir.join("winemetalgl.tar.gz");
-        let _ = std::fs::remove_file(&winemetalgl_part);
-        let _ = std::fs::remove_file(&winemetalgl_tar);
+    // 2. Download and install WineMetalGL (~15 MB)
+    let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
+        stage: "configuring".to_string(),
+        percent: 75.0,
+        downloaded_mb: 17.7,
+        total_mb: 17.7,
+        speed_mb: 0.0,
+        message: "Configuring WineMetalGL OpenGL-to-Metal translation layer (~15 MB)...".to_string(),
+    });
 
-        let winemetalgl_curl = Command::new("/usr/bin/curl")
-            .arg("-L")
-            .arg("-f")
-            .arg("-A")
-            .arg(SWIFTER_USER_AGENT)
-            .arg("-o")
-            .arg(&winemetalgl_part)
-            .arg(winemetalgl_url)
-            .status();
+    let winemetalgl_url = "https://github.com/metalsharp/WineMetalGL/releases/download/winemetalgl-3.7.0/winemetalgl-3.7.0-x86_64.tar.gz";
+    let winemetalgl_part = cache_dir.join("winemetalgl.tar.gz.part");
+    let winemetalgl_tar = cache_dir.join("winemetalgl.tar.gz");
+    let _ = std::fs::remove_file(&winemetalgl_part);
+    let _ = std::fs::remove_file(&winemetalgl_tar);
 
-        if let Ok(s) = winemetalgl_curl {
-            if s.success() {
-                let wmgl_len = std::fs::metadata(&winemetalgl_part).map(|m| m.len()).unwrap_or(0);
-                if wmgl_len > 1_000_000 {
-                    let _ = std::fs::rename(&winemetalgl_part, &winemetalgl_tar);
-                    let wmgl_stage = cache_dir.join("winemetalgl_stage");
-                    let _ = std::fs::remove_dir_all(&wmgl_stage);
-                    let _ = std::fs::create_dir_all(&wmgl_stage);
-                    if Command::new("/usr/bin/tar").arg("-xzf").arg(&winemetalgl_tar).arg("-C").arg(&wmgl_stage).status().map(|s| s.success()).unwrap_or(false) {
-                        let shared_runtime = prefix_mgr::get_shared_runtime_dir();
-                        let sys32 = shared_runtime.join("drive_c/windows/system32");
-                        let syswow = shared_runtime.join("drive_c/windows/syswow64");
-                        let _ = std::fs::create_dir_all(&sys32);
-                        let _ = std::fs::create_dir_all(&syswow);
+    let winemetalgl_curl = Command::new("/usr/bin/curl")
+        .arg("-L")
+        .arg("-f")
+        .arg("-A")
+        .arg(SWIFTER_USER_AGENT)
+        .arg("-o")
+        .arg(&winemetalgl_part)
+        .arg(winemetalgl_url)
+        .status();
 
-                        let unix_lib = target_wine_dir.join("lib/wine/x86_64-unix");
-                        let win_lib = target_wine_dir.join("lib/wine/x86_64-windows");
-                        let win32_lib = target_wine_dir.join("lib/wine/i386-windows");
+    if let Ok(s) = winemetalgl_curl {
+        if s.success() {
+            let wmgl_len = std::fs::metadata(&winemetalgl_part).map(|m| m.len()).unwrap_or(0);
+            if wmgl_len > 1_000_000 {
+                let _ = std::fs::rename(&winemetalgl_part, &winemetalgl_tar);
+                let wmgl_stage = cache_dir.join("winemetalgl_stage");
+                let _ = std::fs::remove_dir_all(&wmgl_stage);
+                let _ = std::fs::create_dir_all(&wmgl_stage);
+                if Command::new("/usr/bin/tar").arg("-xzf").arg(&winemetalgl_tar).arg("-C").arg(&wmgl_stage).status().map(|s| s.success()).unwrap_or(false) {
+                    let shared_runtime = prefix_mgr::get_shared_runtime_dir();
+                    let sys32 = shared_runtime.join("drive_c/windows/system32");
+                    let syswow = shared_runtime.join("drive_c/windows/syswow64");
+                    let _ = std::fs::create_dir_all(&sys32);
+                    let _ = std::fs::create_dir_all(&syswow);
+
+                    if let Some(target_wine) = target_wine_dir {
+                        let unix_lib = target_wine.join("lib/wine/x86_64-unix");
+                        let win_lib = target_wine.join("lib/wine/x86_64-windows");
+                        let win32_lib = target_wine.join("lib/wine/i386-windows");
                         let _ = std::fs::create_dir_all(&unix_lib);
                         let _ = std::fs::create_dir_all(&win_lib);
                         let _ = std::fs::create_dir_all(&win32_lib);
@@ -727,39 +757,65 @@ pub async fn install_swifter_runtime(app: tauri::AppHandle) -> Result<String, St
                         }
                         if src_win64.exists() {
                             let _ = std::fs::copy(src_win64.join("winemetalgl.dll"), win_lib.join("winemetalgl.dll"));
-                            let _ = std::fs::copy(src_win64.join("opengl32.dll"), sys32.join("opengl32.dll"));
-                            let _ = std::fs::copy(src_win64.join("winemetalgl.dll"), sys32.join("winemetalgl.dll"));
                         }
                         if src_win32.exists() {
                             let _ = std::fs::copy(src_win32.join("winemetalgl.dll"), win32_lib.join("winemetalgl.dll"));
-                            let _ = std::fs::copy(src_win32.join("opengl32.dll"), syswow.join("opengl32.dll"));
-                            let _ = std::fs::copy(src_win32.join("winemetalgl.dll"), syswow.join("winemetalgl.dll"));
                         }
-
-                        let _ = Command::new("/usr/bin/xattr")
-                            .arg("-dr")
-                            .arg("com.apple.quarantine")
-                            .arg(&shared_runtime)
-                            .output();
                     }
-                    let _ = std::fs::remove_dir_all(&wmgl_stage);
-                    let _ = std::fs::remove_file(&winemetalgl_tar);
+
+                    let module_dir = wmgl_stage.join("winemetalgl-3.7.0-x86_64/module");
+                    let src_win64 = module_dir.join("x86_64-windows");
+                    let src_win32 = module_dir.join("i386-windows");
+
+                    if src_win64.exists() {
+                        let _ = std::fs::copy(src_win64.join("opengl32.dll"), sys32.join("opengl32.dll"));
+                        let _ = std::fs::copy(src_win64.join("winemetalgl.dll"), sys32.join("winemetalgl.dll"));
+                    }
+                    if src_win32.exists() {
+                        let _ = std::fs::copy(src_win32.join("opengl32.dll"), syswow.join("opengl32.dll"));
+                        let _ = std::fs::copy(src_win32.join("winemetalgl.dll"), syswow.join("winemetalgl.dll"));
+                    }
+
+                    let _ = Command::new("/usr/bin/xattr")
+                        .arg("-dr")
+                        .arg("com.apple.quarantine")
+                        .arg(&shared_runtime)
+                        .output();
                 }
+                let _ = std::fs::remove_dir_all(&wmgl_stage);
+                let _ = std::fs::remove_file(&winemetalgl_tar);
             }
         }
-        let _ = std::fs::remove_file(&winemetalgl_part);
-        // Stage 5: Completed
-        let success_msg = format!("Wine runtime, DXVK, and WineMetalGL installed and verified at {}", target_wine_dir.display());
+    }
+    let _ = std::fs::remove_file(&winemetalgl_part);
+    Ok(())
+}
+
+/// 10. Downloads and configures only DXVK and WineMetalGL graphics engines into wine-shared
+#[tauri::command]
+pub async fn install_graphics_engines(app: tauri::AppHandle) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let runtimes_dir = prefix_mgr::get_swifter_support_dir().join("runtimes");
+        let target_wine_dir = runtimes_dir.join("wine");
+        let wine_opt = if target_wine_dir.exists() {
+            Some(target_wine_dir.as_path())
+        } else {
+            None
+        };
+
+        provision_dxvk_and_winemetalgl(&app, wine_opt)?;
+
+        let msg = "DXVK and WineMetalGL graphics engines installed successfully.".to_string();
         let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
             stage: "completed".to_string(),
             percent: 100.0,
-            downloaded_mb: total_mb,
-            total_mb,
+            downloaded_mb: 17.7,
+            total_mb: 17.7,
             speed_mb: 0.0,
-            message: success_msg.clone(),
+            message: msg.clone(),
         });
 
-        Ok(success_msg)
+        Ok(msg)
     })
     .await
     .map_err(|e| format!("Task execution error: {}", e))?

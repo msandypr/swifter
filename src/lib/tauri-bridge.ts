@@ -96,6 +96,10 @@ export async function installSwifterRuntime(): Promise<string> {
   return await invoke<string>('install_swifter_runtime');
 }
 
+export async function installGraphicsEngines(): Promise<string> {
+  return await invoke<string>('install_graphics_engines');
+}
+
 export async function removeSwifterRuntime(): Promise<void> {
   await invoke('remove_swifter_runtime');
 }
