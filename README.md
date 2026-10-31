@@ -1,16 +1,16 @@
 <p align="center">
-  <img src="static/logo-swifter.png" width="120" height="120" alt="Swifter Logo" />
+  <img src="static/logo-swifter.png" width="100" height="100" alt="Swifter Logo" />
 </p>
 
 <h1 align="center">Swifter</h1>
 
 <p align="center">
-  <strong>Portable Windows (<code>.exe</code>) to macOS (<code>.app</code>) Packaging Utility</strong><br>
+  <strong>Packaging utility to turn standalone Windows executables (<code>.exe</code>) into native macOS application bundles (<code>.app</code>).</strong>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-macOS%2012.0+-black?style=flat-square&logo=apple" alt="Platform" />
-  <img src="https://img.shields.io/badge/Version-v0.2.0-zinc?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v0.2-zinc?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/Framework-Tauri%20v2-24c8db?style=flat-square&logo=tauri&logoColor=white" alt="Tauri v2" />
   <img src="https://img.shields.io/badge/Frontend-Svelte%205-ff3e00?style=flat-square&logo=svelte&logoColor=white" alt="Svelte 5" />
   <img src="https://img.shields.io/badge/Backend-Rust%202024-black?style=flat-square&logo=rust&logoColor=white" alt="Rust" />
@@ -19,224 +19,160 @@
 
 ---
 
-## Overview
+## User Guide
 
-**Swifter** is a macOS desktop utility built with **Tauri v2**, **Rust**, and **Svelte 5**. It packages standalone, DRM-free Windows executables (`.exe`) and portable game directories into standard macOS application bundles (`.app`).
+### What is Swifter?
 
-Built primarily for standalone indie games (such as archives distributed via itch.io or Game Jolt), Swifter operates strictly as a **packaging, prefix-provisioning, and orchestration tool**. It constructs standard macOS bundle structures and manages lightweight Wine prefixes while delegating binary execution to external Wine runtimes. It does not bundle, modify, redistribute, or circumvent proprietary translation layers.
+**Swifter** is a lightweight macOS utility that converts standalone Windows executables (`.exe`), software directories, and portable games into native, ready-to-launch macOS application bundles (`.app`).
 
----
+Instead of cloning multi-gigabyte virtual Windows disks for every app, Swifter provisions lightweight **micro-prefixes** and configures graphics translation layers automatically. Execution is delegated to standard Wine runtimes while keeping user settings and configurations strictly isolated per application.
 
-### Architectural Comparison
+### Key Features
 
-| Aspect | Traditional Bottle Managers | Swifter |
+* **Direct Folder & Executable Ingestion**: Drag and drop any `.exe` or application folder. Swifter inspects binary headers, detects architecture (32/64-bit), and keeps companion files and assets intact.
+* **Native Icon Extraction**: Directly parses Windows PE `RT_GROUP_ICON` resources in Rust and compiles multi-resolution Apple `.icns` containers (16x16 to 1024x1024) without third-party converters.
+* **Isolated Micro-Prefixes**: System directories (`system32`, `syswow64`, `fonts`) symlink to a shared base runtime, while `AppData`, user directories, and registry hives stay isolated per application.
+* **Selectable Graphics Translation**:
+  * **DXVK**: DirectX 9, 10, and 11 translation to Vulkan via MoltenVK.
+  * **Apple D3DMetal**: DirectX 11 and 12 translation to Apple Metal on Apple Silicon.
+  * **WineMetalGL & WineD3D**: OpenGL 1.0–4.6 to Apple Metal translation layer for 2D/3D software and legacy utilities.
+* **Bring Your Own Runtime (BYOR) or 1-Click Install**: Automatically routes through existing installations of **Homebrew Wine**, **Whisky**, or **CrossOver**, or installs an official portable WineHQ + DXVK + WineMetalGL bundle in 1 click.
+* **Application Library**: Launch packaged apps, view bundles in Finder, or access isolated `AppData` directories with one click.
+* **Installer Wizard Support**: Run Windows setup wizards inside an isolated prefix, then package the installed executable directly.
+
+### Comparison
+
+| Feature | Traditional Wine Managers | Swifter |
 | :--- | :--- | :--- |
-| **Prefix Footprint** | 1.5 GB – 2.5 GB per bottle (full virtual `C:` drive) | **~15 MB – 30 MB** per app (symlinked micro-prefix) |
-| **Directory Context** | Often targets single `.exe` installers | **Preserves full parent game directory (`*_Data`, `.pck`)** |
-| **Icon Handling** | Generic fallback icons or manual image assignment | **Automatic PE `RT_GROUP_ICON` to Apple `.icns` conversion** |
-| **Workflow** | Bottle initialization and installer execution | **Direct folder/executable inspection and bundling** |
-| **Save Data Access** | Nested inside virtual drive hierarchies | **Direct shortcut to isolated per-game `AppData`** |
+| **Storage per App** | 1.5 GB – 2.5 GB (full virtual `C:` drive) | **Micro-prefix** using shared system symlinks |
+| **Directory Context** | Often requires full installer re-run | **Preserves full folder tree (`*_Data`, companion DLLs)** |
+| **Icon Handling** | Generic icons or manual user setup | **Automatic PE header extraction to `.icns`** |
+| **Dock Integration** | Ghost launcher icons or terminal windows | **Single native Dock item (`LSUIElement` handling)** |
+| **Workflow** | Multi-step bottle creation | **Drop file → Review options → Pack with Swifter** |
+
+### How to Use
+
+1. **Install Runtime**: Open **Settings**. Ensure Wine is installed (use the 1-Click Install button, or `brew install --cask wine-stable`).
+2. **Select Application**: In **Convert**, drag & drop a Windows `.exe` or application folder, or click to browse Finder.
+3. **Configure Options**: Review executable architecture, app name, and recommended graphics backend. (If dropping an installer wizard, click *Run Setup Wizard in Micro-Prefix* first).
+4. **Pack**: Click **Pack with Swifter**. Your new `.app` bundle will appear in your **Library** and `/Applications` folder.
+
+### macOS Gatekeeper Note
+
+Swifter is an open-source project distributed freely without a paid Apple Developer certificate. If macOS flags downloaded builds as damaged or unverified, run this command in **Terminal**:
+
+```bash
+xattr -cr /Applications/Swifter.app
+```
+
+*(Or open **System Settings** → **Privacy & Security** → scroll to Security → click **Open Anyway**).*
 
 ---
 
-## Core Features
+## Developer Guide
 
-### 1. Executable & Directory Inspection
-Drop a standalone `.exe` or a game directory into the interface. Swifter scans the directory tree, identifies the primary executable, detects the target architecture (32-bit/64-bit) and game engine, and prepares the `.app` bundle layout.
-
-### 2. Directory Context Preservation
-Portable Windows games rely on external assets placed relative to the executable. Swifter preserves parent directory structures so Unity data folders (`*_Data`), Godot resource packs (`.pck`), GameMaker archives (`data.win`), and companion DLLs remain accessible at runtime.
-
-### 3. Native PE Icon Extraction
-Swifter parses Windows Portable Executable headers directly in Rust using `pelite`. It extracts embedded `RT_GROUP_ICON` resources, resizes the bitmap layers, and compiles a standard multi-resolution Apple `.icns` container (16x16 up to 1024x1024).
-
-### 4. Symlinked Micro-Prefixes (~15–30 MB)
-Instead of duplicating a full 2 GB `C:` drive for every packaged title, Swifter provisions an isolated micro-prefix:
-- System directories (`system32`, `syswow64`, `fonts`) are symlinked to a shared base runtime.
-- User state (`AppData/Local`, `AppData/Roaming`, `Saved Games`, and registry hives) remains strictly isolated per application.
-
-### 5. Configurable Graphics Backends
-Users can select the appropriate graphics translation backend per application based on the target engine:
-
-| Backend | Target APIs | Translation Path | Typical Use Case |
-| :--- | :--- | :--- | :--- |
-| **DXVK** | DirectX 9, 10, 11 | Vulkan via MoltenVK | Unity 3D, Godot, and 3D indie games |
-| **Apple D3DMetal** | DirectX 11, 12 | Apple Metal (User-supplied GPTK) | DirectX 11/12 titles on Apple Silicon |
-| **WineD3D (Vanilla)** | DirectX 9, OpenGL | WineMetalGL (OpenGL 1.0–4.6 via Metal) & `wined3d` | 2D GameMaker, LibGDX, RPG Maker, and legacy utilities |
-
-### 6. Automated Upstream Runtime Fetcher & BYOR
-Swifter does not bundle or redistribute Wine binaries within its repository or installer. To execute packaged applications, Swifter supports:
-- **Direct Upstream Fetching:** If no local Wine installation is found, the built-in Runtime Manager downloads pre-built, open-source Wine archives directly from official upstream community releases (such as [Gcenx's macOS Wine builds](https://github.com/Gcenx/macOS_Wine_builds)) and configures the local shared base directory.
-- **Bring-Your-Own-Runtime (BYOR):** Automatically detects and routes execution through existing local installations of **Homebrew Wine**, **Whisky**, or a licensed copy of **CrossOver**.
-
-### 7. Application Shelf & Save Data Management
-The **Shelf** view lists all packaged `.app` bundles. Users can launch applications, reveal bundles in Finder, or open the application's isolated `AppData` directory to back up or modify save files.
-
----
-
-## System Architecture
+### Architecture
 
 ```text
 swifter/
 ├── src-tauri/
 │   ├── src/
-│   │   ├── main.rs              # Tauri macOS application entrypoint
-│   │   ├── lib.rs               # Plugin initialization & command dispatcher
-│   │   ├── commands.rs          # IPC bridge (inspect, pack, dry-run, runtime)
+│   │   ├── main.rs              # macOS desktop harness entrypoint
+│   │   ├── lib.rs               # Command registry and plugin initialization
+│   │   ├── commands.rs          # Native IPC commands (inspect, pack, dialog, status)
 │   │   ├── analyzer/
-│   │   │   ├── pe_parser.rs     # 32/64-bit detection, PE metadata, DRM/anti-cheat check
-│   │   │   ├── folder_scan.rs   # Engine heuristics (Unity, Godot, GameMaker, Unreal)
-│   │   │   └── icon_extract.rs  # PE resource parsing to multi-resolution .icns
+│   │   │   ├── pe_parser.rs     # PE header parsing, architecture check, anti-cheat detection
+│   │   │   ├── folder_scan.rs   # Framework heuristics (Unity, Godot, GameMaker, Unreal)
+│   │   │   └── icon_extract.rs  # In-memory RT_GROUP_ICON parsing to multi-tier .icns
 │   │   └── engine/
-│   │       ├── prefix_mgr.rs    # Isolated micro-prefix provisioning (~15MB/app)
-│   │       ├── launcher_shim.rs # POSIX launcher script & runtime discovery
-│   │       ├── bundle_builder.rs# macOS .app bundle generator (Info.plist, PkgInfo)
-│   │       └── recipes.rs       # Engine translation presets & environment variables
-├── src/                         # Svelte 5 Frontend
+│   │       ├── prefix_mgr.rs    # Micro-prefix skeleton & symlink manager
+│   │       ├── launcher_shim.rs # POSIX launcher script generation
+│   │       ├── bundle_builder.rs# macOS .app bundle assembler (Info.plist, PkgInfo)
+│   │       └── recipes.rs       # Engine translation presets
+├── src/                         # Svelte 5 + Tailwind CSS Frontend
 │   ├── routes/
-│   │   ├── +layout.svelte       # Application shell & window chrome
-│   │   └── +page.svelte         # Main view router & navigation
-│   └── components/
-│       ├── Dropzone.svelte      # File & directory drop target
-│       ├── GameInspector.svelte # Bundle configuration, backend selector, dry-run test
-│       ├── ProgressModal.svelte # Packaging step status modal
-│       ├── Shelf.svelte         # Packaged app library & AppData shortcuts
-│       ├── Settings.svelte      # Upstream runtime fetcher & prefix storage manager
-│       ├── Guide.svelte         # Built-in usage documentation
-│       └── About.svelte         # Project metadata & license information
-└── recipes/
-    └── default_recipes.json     # Engine heuristics and environment presets
+│   │   └── +page.svelte         # Segmented navigation & main layout router
+│   ├── components/
+│   │   ├── Dropzone.svelte      # Modern glass drop target & native picker trigger
+│   │   ├── GameInspector.svelte # Configuration card, backend selector, dry-run test
+│   │   ├── ProgressModal.svelte # Real-time packaging progress modal
+│   │   ├── Shelf.svelte         # Library view, executable switcher, AppData reveal
+│   │   ├── Settings.svelte      # Runtime status, engine checks, storage cleanup
+│   │   ├── Guide.svelte         # Embedded quick walkthrough
+│   │   └── About.svelte         # Contributor credits & license information
+│   └── lib/
+│       └── tauri-bridge.ts      # TypeScript interfaces and Tauri invoke wrappers
 ```
-
----
-
-## Installation & Prerequisites
-
-### System Requirements
-- **Operating System:** macOS 12.0 (Monterey) or later.
-- **Architecture:** Apple Silicon (`aarch64`) or Intel (`x86_64`).
-- **Wine Runtime:** Swifter generates the `.app` container and manages the prefix, requiring a Wine runtime on the host to run Windows binaries. You can:
-  - Fetch an open-source portable Wine build via the in-app Runtime Manager (downloads directly from upstream GitHub releases).
-  - Install Wine system-wide via Homebrew:
-    ```bash
-    brew install --cask wine-stable
-    ```
-  - Utilize an existing local installation of **CrossOver** or **Whisky**.
-
-### macOS Gatekeeper Note ("App is damaged and can't be opened")
-Because Swifter is an open-source project distributed freely without a paid Apple Developer Certificate ($99/yr), macOS Gatekeeper flags unnotarized internet downloads as "damaged". The app is completely safe and intact.
-
-To resolve this, run this one command in your macOS **Terminal**:
-```bash
-xattr -cr /Applications/Swifter.app
-```
-*Alternatively: Go to **System Settings** → **Privacy & Security** → scroll down to Security → click **Open Anyway**.*
----
-
-## Developer Guide
 
 ### Prerequisites
 
-Ensure **Rust** and **Bun** (or Node.js) are installed on your system:
+* **macOS**: 12.0 (Monterey) or later (Apple Silicon or Intel).
+* **Rust**: 1.80+ (`cargo --version`)
+* **Bun** or **Node.js**: Bun 1.1+ (`bun --version`)
+
+### Development
 
 ```bash
-cargo --version
-bun --version
-```
-
-Clone the repository and install frontend dependencies:
-
-```bash
+# Clone repository
 git clone https://github.com/msandypr/swifter.git
 cd swifter
+
+# Install dependencies
 bun install
-```
 
-### Development Server
-
-Run the application in development mode with hot-reloading:
-
-```bash
+# Run development server with hot-reload
 bun run tauri dev
 ```
 
-### Production Build
+### Verification & Testing
 
-Compile release binaries (`.app` and `.dmg`):
+```bash
+# Rust unit and integration tests
+cargo test --manifest-path src-tauri/Cargo.toml
+
+# Svelte / TypeScript type-check
+bun run check
+
+# Frontend production build
+bun run build
+```
+
+### Building Release Bundles
 
 ```bash
 bun run tauri build
 ```
 
-Build artifacts are output to:
-- `src-tauri/target/release/bundle/macos/Swifter.app`
-- `src-tauri/target/release/bundle/dmg/Swifter_0.2.0_aarch64.dmg`
-
-### Testing & Verification
-
-Run the Rust unit and integration test suites:
-
-```bash
-cargo test --manifest-path src-tauri/Cargo.toml
-```
-
-Run Svelte/TypeScript type checks:
-
-```bash
-bun run check
-```
+Compiled release artifacts will be output to:
+* `src-tauri/target/release/bundle/macos/Swifter.app`
+* `src-tauri/target/release/bundle/dmg/Swifter_0.2_aarch64.dmg`
 
 ---
 
-## Usage Workflow
+## Open-Source Credits & Upstream Projects
 
-1. **Open Swifter.**
-2. **Select Input:** Drag and drop a Windows `.exe` or game folder into the dropzone.
-3. **Configure Bundle:**
-   - Review the detected architecture and game engine.
-   - Select a translation backend (**DXVK**, **D3DMetal**, or **WineD3D**).
-   - Choose between **Symlink Mode** (references original game files in place) or **Standalone Copy** (copies game assets inside the `.app` bundle).
-4. **Dry Run (Optional):** Click **Dry Run (3s Test)** to verify executable initialization and inspect standard error logs before building the bundle.
-5. **Package:** Click **Pack with Swifter** to generate the `.app` bundle inside `/Applications` (or `~/Applications`).
-6. **Launch & Manage:** Run the packaged application directly from Finder, Dock, Spotlight, or the Swifter **Shelf**.
+Swifter is built upon and orchestrates several upstream open-source projects:
 
----
+* **[WineHQ](https://www.winehq.org) & [Gcenx](https://github.com/Gcenx/macOS_Wine_builds)**: Windows API translation layer and official standalone macOS binary packages maintained by Dean M. (Gcenx).
+* **[DXVK](https://github.com/doitsujin/dxvk)**: Vulkan-based translation layer for Direct3D 9, 10, and 11 by Philip Rebohle.
+* **[MoltenVK](https://github.com/KhronosGroup/MoltenVK)**: Khronos Group implementation of the Vulkan graphics API mapped over Apple Metal.
+* **[WineMetalGL](https://github.com/MetalSharp/WineMetalGL)**: OpenGL 1.0–4.6 to Apple Metal translation layer by MetalSharp for Apple Silicon.
+* **[Tauri](https://github.com/tauri-apps/tauri)**: Memory-safe native application framework and OS webview bridge.
+* **[Rust](https://www.rust-lang.org)**: Systems programming language providing high performance and memory safety.
+* **[Svelte 5](https://github.com/sveltejs/svelte)**: Reactive UI framework by Rich Harris and contributors.
+* **[Tailwind CSS](https://tailwindcss.com)**: Utility-first CSS framework by Tailwind Labs.
 
-## Acknowledgments & Legal Disclaimer
+### Community & Upstream Etiquette
 
-- **The Wine Project & CodeWeavers:** Running Windows software on macOS relies heavily on the ongoing engineering efforts of the **Wine Project**, **CodeWeavers**, and upstream macOS maintainers such as **Gcenx**. If you regularly run Windows applications or games on macOS, please consider supporting upstream Wine development by purchasing a [CrossOver](https://www.codeweavers.com/crossover) license.
-- **WineMetalGL (MetalSharp):** OpenGL 1.0–4.6 to Apple Metal translation layer developed by [MetalSharp](https://github.com/metalsharp/WineMetalGL), enabling modern OpenGL compatibility on Apple Silicon without depending on deprecated native macOS OpenGL frameworks.
-- **No Proprietary Redistribution:** Swifter does **not** host, bundle, redistribute, or modify proprietary binaries owned by CodeWeavers or Apple Inc. (such as Game Porting Toolkit / D3DMetal). The built-in runtime fetcher connects directly to public, open-source upstream repositories, and D3DMetal options require the user to supply those components legally on their own machine.
-- **Intended Use:** Swifter is built strictly for packaging legally obtained, DRM-free software, personal builds, and indie games. It does not bypass DRM, Steamworks, or anti-cheat protections.
-- **Trademarks:** macOS, Metal, and Finder are trademarks of Apple Inc. Windows and DirectX are trademarks of Microsoft Corporation. CrossOver is a trademark of CodeWeavers, Inc. All other trademarks are the property of their respective owners.
+Swifter is a packaging wrapper and prefix orchestrator. Please respect upstream maintainers:
+* **Report to Swifter Issues**: Packaging errors, `.app` bundle structure issues, micro-prefix symlink bugs, UI defects, or launcher script issues.
+* **Do NOT report wrapper issues to WineHQ or DXVK or WineMetalGL bug trackers**: Inherent translation compatibility or rendering issues belong to general Wine/DXVK/WineMetalGL discussions. Never submit tickets about Swifter wrappers to upstream maintainers.
 
----
-## Upstream Etiquette & Bug Reporting
+### Author
 
-Swifter is an open-source packaging engine and micro-prefix manager. It bridges user game files with upstream compatibility runtimes (**WineHQ**, **Gcenx**, **DXVK**, **MoltenVK**, **WineMetalGL**). To maintain a healthy and respectful open-source ecosystem:
+* **Created by:** [msandypr](https://github.com/msandypr)
+* **GitHub Repository:** [https://github.com/msandypr/swifter](https://github.com/msandypr/swifter)
 
-- **Report to Swifter Issues ([GitHub Issues](https://github.com/msandypr/swifter/issues)):**
-  - Application packaging errors, Info.plist generation issues, or missing executable permissions.
-  - Micro-prefix allocation, directory symlinking, or launcher generation bugs.
-  - Icon extraction failures, metadata inaccuracies, or frontend UI defects.
-  - In-app runtime downloader, staging, or uninstallation issues.
-
-- **Upstream Wine & In-Game Compatibility:**
-  - Game-specific rendering glitches, missing DirectX/OpenGL features, or game engine crashes are inherent to the underlying translation layers (Wine, DXVK, and Apple Metal).
-  - **Please do NOT file Swifter packaging issues on WineHQ, CodeWeavers, or Gcenx bug trackers.** Upstream maintainers dedicate immense volunteer time to core translation work and cannot provide technical support for third-party wrapper wrappers.
-
----
-
-
-## Author
-
-- **Developer:** [msandypr](https://github.com/msandypr)
-- **Repository:** [https://github.com/msandypr/swifter](https://github.com/msandypr/swifter)
-
----
-
-## License
+### License
 
 This project is licensed under the **[GNU General Public License v3.0 (GPLv3)](LICENSE)**.
-
-You are free to use, study, modify, and redistribute this software under the terms of the GPLv3. Any derivative work or modified distribution must remain open-source under the same GPLv3 license with full source code disclosed. Re-licensing this project as closed-source or proprietary commercial software is strictly prohibited.
