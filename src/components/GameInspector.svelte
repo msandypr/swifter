@@ -11,11 +11,10 @@
     HardDrive,
     Layers,
     Play,
-    FileCode,
     AlertTriangle,
-    Lock
+    Lock,
+    ChevronDown
   } from 'lucide-svelte';
-
   let {
     inspection,
     onPack,
@@ -135,7 +134,7 @@
         <div class="space-y-1">
           <div class="font-semibold text-amber-300">Setup Wizard / Installer Executable Detected</div>
           <p class="text-zinc-400 text-[11px] leading-relaxed">
-            This executable is an installer. To package the actual game, run the setup wizard first so it installs into the isolated prefix, or select the installed game executable below.
+            This executable is an installer. To package the actual application, run the setup wizard first so it installs into the isolated prefix, or select the installed application executable below.
           </p>
         </div>
       </div>
@@ -205,7 +204,7 @@
           type="text"
           bind:value={appName}
           class="w-full px-4 py-2 rounded-xl glass-input text-sm font-medium border border-zinc-800 bg-zinc-950/60 text-zinc-100"
-          placeholder="e.g. My Game"
+          placeholder="e.g. My Application"
         />
       </div>
 
@@ -219,25 +218,28 @@
             <select
               id="target-exe-select"
               bind:value={selectedTargetExe}
-              class="w-full px-4 py-2 rounded-xl glass-input text-xs font-mono text-zinc-200 border border-zinc-800 bg-zinc-950/80 cursor-pointer"
+              class="w-full h-11 pl-4 pr-10 rounded-xl glass-input text-xs font-mono text-zinc-200 border border-zinc-800 hover:border-zinc-700 focus:border-zinc-600 bg-zinc-950/80 cursor-pointer appearance-none transition-colors"
             >
               {#each allExeOptions() as opt}
-                <option value={opt} class="bg-zinc-900 text-zinc-200">{opt}</option>
+                <option value={opt} class="bg-zinc-900 text-zinc-200 py-1">{opt}</option>
               {/each}
             </select>
+            <div class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400">
+              <ChevronDown class="w-4 h-4" />
+            </div>
           </div>
         {:else}
           <input
             id="target-exe-select"
             type="text"
             bind:value={selectedTargetExe}
-            class="w-full px-4 py-2 rounded-xl glass-input text-xs font-mono text-zinc-200 border border-zinc-800 bg-zinc-950/80"
+            class="w-full h-11 px-4 rounded-xl glass-input text-xs font-mono text-zinc-200 border border-zinc-800 bg-zinc-950/80"
           />
         {/if}
       </div>
 
       <div class="text-xs text-zinc-400 space-y-1">
-        <span class="font-semibold text-zinc-500">Game Root:</span>
+        <span class="font-semibold text-zinc-500">Root Folder:</span>
         <div class="font-mono text-zinc-300 truncate text-[11px]" title={inspection.game_folder_path}>
           {inspection.game_folder_path}
         </div>
@@ -254,7 +256,7 @@
           Translation Engine Backend
         </h3>
         <p class="text-xs text-zinc-400 mt-0.5">
-          Select graphics translation layer based on game graphics API
+          Select graphics translation layer based on application graphics API
         </p>
       </div>
     </div>
@@ -314,7 +316,7 @@
         <div class="space-y-0.5">
           <div class="text-sm font-medium text-zinc-200">Standalone Bundle (Copy all files into .app)</div>
           <div class="text-xs text-zinc-400">
-            {copyFiles ? 'Creates a completely self-contained .app bundle. Downloaded game folder can be safely deleted.' : 'Uses fast symlink to preserve disk space (~15MB per game micro-prefix).'}
+            {copyFiles ? 'Creates a completely self-contained .app bundle. Original source folder can be safely deleted.' : 'Uses fast symlink to preserve disk space (micro-prefix).'}
           </div>
         </div>
         <input type="checkbox" bind:checked={copyFiles} class="w-4 h-4 rounded accent-zinc-400" />
