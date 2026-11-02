@@ -132,6 +132,14 @@ fi
 
     // Launch execution
     script.push_str(r#"
+# If config file specifies target_exe_relative dynamically, read it
+if [ -f "$RESOURCES_DIR/swifter.config.json" ]; then
+    CFG_EXE="$(grep -o '"target_exe_relative"[^,]*' "$RESOURCES_DIR/swifter.config.json" | cut -d'"' -f4)"
+    if [ -n "$CFG_EXE" ]; then
+        EXE_REL="$CFG_EXE"
+    fi
+fi
+
 # Resolve executable path (checks game payload, prefix root, prefix drive_c, or wine-shared)
 TARGET_EXE=""
 
@@ -149,24 +157,30 @@ elif [ -f "$EXE_REL" ]; then
     TARGET_EXE="$EXE_REL"
 fi
 
-# If TARGET_EXE is still an installer or not found, auto-discover installed game binary in Program Files
+# If TARGET_EXE is still an installer or not found, auto-discover installed binary in Program Files or AppData
 if [ -z "$TARGET_EXE" ] || echo "$EXE_REL" | grep -qiE "setup|install"; then
-    DISCOVERED="$(find "$WINEPREFIX/drive_c/Program Files" "$WINEPREFIX/drive_c/Program Files (x86)" "$HOME/Library/Application Support/Swifter/runtimes/wine-shared/drive_c/Program Files" "$HOME/Library/Application Support/Swifter/runtimes/wine-shared/drive_c/Program Files (x86)" -maxdepth 3 -iname "*.exe" 2>/dev/null | grep -viE "unins|setup|install|crash|vcredist" | head -n 1)"
+    DISCOVERED="$(find "$WINEPREFIX/drive_c/Program Files" "$WINEPREFIX/drive_c/Program Files (x86)" "$WINEPREFIX/drive_c/users" "$HOME/Library/Application Support/Swifter/runtimes/wine-shared/drive_c/Program Files" "$HOME/Library/Application Support/Swifter/runtimes/wine-shared/drive_c/Program Files (x86)" -maxdepth 8 -iname "*.exe" 2>/dev/null | grep -viE "unins|setup|install|crash|vcredist|updater|dotnet" | head -n 1)"
     if [ -n "$DISCOVERED" ] && [ -f "$DISCOVERED" ]; then
         TARGET_EXE="$DISCOVERED"
     fi
 fi
 
 if [ -z "$TARGET_EXE" ] || [ ! -f "$TARGET_EXE" ]; then
-    osascript -e "display alert \"Game Executable Missing\" message \"Could not find executable: $EXE_REL\nSearched in payload, prefix, and Program Files.\" as critical"
+    osascript -e "display alert \"Executable Missing\" message \"Could not find executable: $EXE_REL\nSearched in payload, prefix, and AppData.\" as critical"
     exit 1
 fi
 
 # Set working directory to executable folder so assets load relatively
 cd "$(dirname "$TARGET_EXE")"
 
-exec "$WINE_BIN" "$TARGET_EXE" "$@"
-"#);
+# Execute Wine in the background and wait for all Wine processes in this prefix to finish
+# This ensures that if a launcher/updater spawns a child game process and exits, the game process is not terminated
+"$WINE_BIN" "$TARGET_EXE" "$@" &
 
+sleep 1
+while pgrep -f "$WINEPREFIX" >/dev/null 2>&1; do
+    sleep 1
+done
+"#);
     script
 }

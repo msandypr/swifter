@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use crate::analyzer::{inspect_target_path, SwifterInspection};
 use crate::engine::bundle_builder::{self, BuildAppOptions};
+use crate::engine::launcher_shim;
 use crate::engine::prefix_mgr;
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct InstalledAppInfo {
     pub name: String,
@@ -861,7 +861,7 @@ fn score_candidate(path_str: &str, clean_slug: &str) -> i32 {
     let mut score = 0i32;
     let lower = path_str.to_lowercase();
 
-    if lower.contains("program files") {
+    if lower.contains("program files") || lower.contains("appdata/local") || lower.contains("appdata/roaming") {
         score += 100;
     }
     let filename = Path::new(path_str)
@@ -1021,7 +1021,7 @@ pub async fn scan_available_exes_in_app(bundle_path: String) -> Result<Vec<Strin
 
     for root_dir in search_roots {
         if root_dir.exists() {
-            for entry in walkdir::WalkDir::new(&root_dir).follow_links(true).max_depth(6).into_iter().filter_map(|e| e.ok()) {
+            for entry in walkdir::WalkDir::new(&root_dir).follow_links(true).max_depth(10).into_iter().filter_map(|e| e.ok()) {
                 if entry.file_type().is_file() && entry.path().extension().and_then(|s| s.to_str()).map(|ext| ext.eq_ignore_ascii_case("exe")).unwrap_or(false) {
                     let name = entry.path().file_name().map(|s| s.to_string_lossy().to_lowercase()).unwrap_or_default();
                     if !name.starts_with("unins") && !name.contains("crash") {
@@ -1058,6 +1058,14 @@ pub async fn update_app_target_exe(bundle_path: String, new_target_exe: String) 
 
     std::fs::write(&config_path, serde_json::to_string_pretty(&cfg).unwrap())
         .map_err(|e| format!("Failed to write updated config: {}", e))?;
+
+    if let Ok(app_cfg) = serde_json::from_value::<launcher_shim::SwifterAppConfig>(cfg) {
+        let launcher_script = launcher_shim::generate_launcher_script(&app_cfg);
+        let launcher_path = bundle.join("Contents/MacOS/launcher");
+        let _ = std::fs::write(&launcher_path, launcher_script);
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&launcher_path, std::fs::Permissions::from_mode(0o755));
+    }
 
     Ok(())
 }
