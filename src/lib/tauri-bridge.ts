@@ -76,6 +76,10 @@ export async function revealSaveFolder(appSlug: string): Promise<void> {
   await invoke('reveal_save_folder', { appSlug });
 }
 
+export async function revealDriveC(appSlug: string): Promise<void> {
+  await invoke('reveal_drive_c', { appSlug });
+}
+
 export async function listInstalledApps(): Promise<InstalledAppInfo[]> {
   return await invoke<InstalledAppInfo[]>('list_installed_apps');
 }

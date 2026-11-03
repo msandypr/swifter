@@ -13,6 +13,7 @@ pub fn run() {
             commands::pack_to_app,
             commands::dry_run_check,
             commands::reveal_save_folder,
+            commands::reveal_drive_c,
             commands::list_installed_apps,
             commands::launch_installed_app,
             commands::open_in_finder,

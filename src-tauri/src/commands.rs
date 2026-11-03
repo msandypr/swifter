@@ -221,6 +221,20 @@ pub async fn reveal_save_folder(app_slug: String) -> Result<(), String> {
 
     Ok(())
 }
+
+/// 5. Opens the virtual Drive C: directory in macOS Finder
+#[tauri::command]
+pub async fn reveal_drive_c(app_slug: String) -> Result<(), String> {
+    let drive_c = prefix_mgr::get_prefix_dir(&app_slug).join("drive_c");
+    let _ = std::fs::create_dir_all(&drive_c);
+
+    Command::new("open")
+        .arg(&drive_c)
+        .spawn()
+        .map_err(|e| format!("Failed to open drive_c in Finder: {}", e))?;
+
+    Ok(())
+}
 fn extract_icon_data_url(bundle_path: &Path) -> Option<String> {
     let resources = bundle_path.join("Contents/Resources");
     let png_path = resources.join("AppIcon.png");

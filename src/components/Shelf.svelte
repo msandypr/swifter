@@ -4,6 +4,7 @@
     listInstalledApps,
     launchInstalledApp,
     revealSaveFolder,
+    revealDriveC,
     openInFinder,
     scanAvailableExesInApp,
     updateAppTargetExe,
@@ -22,7 +23,8 @@
     X,
     Trash2,
     AlertCircle,
-    ChevronDown
+    ChevronDown,
+    HardDrive
   } from 'lucide-svelte';
 
   let { onNavigatePacker }: { onNavigatePacker: () => void } = $props();
@@ -300,21 +302,35 @@
             </p>
           </div>
 
-          <!-- 3. Save Data Row -->
+          <!-- 3. AppData Folder -->
           <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 flex items-center justify-between gap-3">
             <div class="min-w-0 space-y-0.5">
-              <span class="text-zinc-300 font-medium block">Save Data & Configuration</span>
-              <p class="text-[11px] text-zinc-500 truncate">Access isolated AppData and config files for this application.</p>
+              <span class="text-zinc-300 font-medium block">AppData Directory</span>
+              <p class="text-[11px] text-zinc-500 truncate">Isolated saves and user configurations</p>
             </div>
             <button
               onclick={() => revealSaveFolder(selectedApp?.slug || '')}
               class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium border border-zinc-700 transition-colors cursor-pointer whitespace-nowrap shrink-0 active:scale-95"
             >
               <FolderArchive class="w-3.5 h-3.5 text-zinc-400" />
-              <span>Open Save Data</span>
+              <span>Open AppData</span>
             </button>
           </div>
 
+          <!-- 4. Virtual Drive C: -->
+          <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 flex items-center justify-between gap-3">
+            <div class="min-w-0 space-y-0.5">
+              <span class="text-zinc-300 font-medium block">Virtual Drive C:</span>
+              <p class="text-[11px] text-zinc-500 truncate">Program Files and Windows prefix filesystem</p>
+            </div>
+            <button
+              onclick={() => revealDriveC(selectedApp?.slug || '')}
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium border border-zinc-700 transition-colors cursor-pointer whitespace-nowrap shrink-0 active:scale-95"
+            >
+              <HardDrive class="w-3.5 h-3.5 text-zinc-400" />
+              <span>Open Drive C:</span>
+            </button>
+          </div>
           <!-- 4. Uninstall Application Section -->
           <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 flex items-center justify-between gap-3">
             <div class="min-w-0 space-y-0.5">
