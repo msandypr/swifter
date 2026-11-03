@@ -297,9 +297,21 @@
               />
             {/if}
 
-            <p class="text-[11px] text-zinc-500">
-              Ensure this points to the main application binary, not the installer.
-            </p>
+            <div class="flex items-center justify-between pt-1 gap-2">
+              <p class="text-[11px] text-zinc-500">
+                Ensure this points to the main application binary, not the installer.
+              </p>
+              <button
+                onclick={handleSaveTargetExe}
+                disabled={!chosenExe || chosenExe === selectedApp.target_exe}
+                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs active:scale-95 disabled:opacity-40 transition-all shadow-sm cursor-pointer whitespace-nowrap shrink-0"
+              >
+                Save Executable
+              </button>
+            </div>
+            {#if updateStatusMsg && updateStatusMsg.toLowerCase().includes('executable')}
+              <div class="text-[11px] font-mono text-emerald-400 pt-0.5">{updateStatusMsg}</div>
+            {/if}
           </div>
 
           <!-- 3. AppData Folder -->
@@ -351,18 +363,11 @@
           <div class="text-xs font-mono text-emerald-400 px-1">{updateStatusMsg}</div>
         {/if}
 
-        <!-- Footer Actions with matching rounded-xl -->
-        <div class="flex items-center gap-2 pt-2 border-t border-zinc-800">
-          <button
-            onclick={handleSaveTargetExe}
-            disabled={!chosenExe}
-            class="flex-1 py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold active:scale-95 disabled:opacity-50 transition-all shadow-sm cursor-pointer"
-          >
-            Save Target Executable
-          </button>
+        <!-- Footer Actions -->
+        <div class="flex items-center justify-end pt-2 border-t border-zinc-800">
           <button
             onclick={() => (isSettingsOpen = false)}
-            class="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-all cursor-pointer"
+            class="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white text-xs font-semibold transition-all shadow-sm cursor-pointer"
           >
             Close
           </button>
