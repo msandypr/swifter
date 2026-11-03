@@ -27,7 +27,7 @@ pub struct RuntimeStatus {
     pub has_winemetalgl: bool,
 }
 
-const SWIFTER_USER_AGENT: &str = "Swifter/0.2.0 (+https://github.com/msandypr/swifter)";
+const SWIFTER_USER_AGENT: &str = "Swifter/0.3 (+https://github.com/msandypr/swifter)";
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RuntimeDownloadProgress {
     pub stage: String,
@@ -232,6 +232,34 @@ pub async fn reveal_drive_c(app_slug: String) -> Result<(), String> {
         .arg(&drive_c)
         .spawn()
         .map_err(|e| format!("Failed to open drive_c in Finder: {}", e))?;
+
+    Ok(())
+}
+
+/// Opens the shared Virtual Drive C: in Finder
+#[tauri::command]
+pub async fn open_shared_drive_c() -> Result<(), String> {
+    let drive_c = prefix_mgr::get_shared_runtime_dir().join("drive_c");
+    let _ = std::fs::create_dir_all(&drive_c);
+
+    Command::new("open")
+        .arg(&drive_c)
+        .spawn()
+        .map_err(|e| format!("Failed to open drive_c in Finder: {}", e))?;
+
+    Ok(())
+}
+
+/// Opens the application prefixes and AppData directory in Finder
+#[tauri::command]
+pub async fn open_prefixes_dir() -> Result<(), String> {
+    let prefixes = prefix_mgr::get_swifter_support_dir().join("prefixes");
+    let _ = std::fs::create_dir_all(&prefixes);
+
+    Command::new("open")
+        .arg(&prefixes)
+        .spawn()
+        .map_err(|e| format!("Failed to open prefixes in Finder: {}", e))?;
 
     Ok(())
 }

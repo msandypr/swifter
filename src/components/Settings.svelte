@@ -1,6 +1,8 @@
 <script lang="ts">
   import {
     removeAllRuntimes,
+    openSharedDriveC,
+    openPrefixesDir,
     type RuntimeStatus
   } from '$lib/tauri-bridge';
   import {
@@ -13,7 +15,8 @@
     ShieldCheck,
     RefreshCw,
     HardDrive,
-    Database
+    Database,
+    FolderArchive
   } from 'lucide-svelte';
 
   let {
@@ -226,6 +229,43 @@
               </span>
             {/if}
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Storage & File Access -->
+    <div class="glass-card rounded-2xl p-4 border border-zinc-800 bg-zinc-900/40 space-y-3">
+      <div class="text-xs font-semibold text-zinc-100">
+        Storage & File Access
+      </div>
+
+      <div class="divide-y divide-zinc-800/60 text-xs">
+        <div class="flex items-center justify-between py-2.5 first:pt-0 gap-3">
+          <div class="min-w-0 space-y-0.5">
+            <span class="text-zinc-200 font-medium block">Virtual Drive C:</span>
+            <p class="text-[11px] text-zinc-500 truncate">Program Files, system32, and shared Windows runtime files</p>
+          </div>
+          <button
+            onclick={openSharedDriveC}
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium border border-zinc-700 transition-colors cursor-pointer whitespace-nowrap shrink-0 active:scale-95"
+          >
+            <HardDrive class="w-3.5 h-3.5 text-zinc-400" />
+            <span>Open Drive C:</span>
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between py-2.5 last:pb-0 gap-3">
+          <div class="min-w-0 space-y-0.5">
+            <span class="text-zinc-200 font-medium block">AppData & Prefixes</span>
+            <p class="text-[11px] text-zinc-500 truncate">Isolated application data, user saves, and registry hives</p>
+          </div>
+          <button
+            onclick={openPrefixesDir}
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium border border-zinc-700 transition-colors cursor-pointer whitespace-nowrap shrink-0 active:scale-95"
+          >
+            <FolderArchive class="w-3.5 h-3.5 text-zinc-400" />
+            <span>Open AppData</span>
+          </button>
         </div>
       </div>
     </div>

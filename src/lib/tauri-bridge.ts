@@ -80,6 +80,14 @@ export async function revealDriveC(appSlug: string): Promise<void> {
   await invoke('reveal_drive_c', { appSlug });
 }
 
+export async function openSharedDriveC(): Promise<void> {
+  await invoke('open_shared_drive_c');
+}
+
+export async function openPrefixesDir(): Promise<void> {
+  await invoke('open_prefixes_dir');
+}
+
 export async function listInstalledApps(): Promise<InstalledAppInfo[]> {
   return await invoke<InstalledAppInfo[]>('list_installed_apps');
 }

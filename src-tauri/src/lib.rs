@@ -14,6 +14,8 @@ pub fn run() {
             commands::dry_run_check,
             commands::reveal_save_folder,
             commands::reveal_drive_c,
+            commands::open_shared_drive_c,
+            commands::open_prefixes_dir,
             commands::list_installed_apps,
             commands::launch_installed_app,
             commands::open_in_finder,
