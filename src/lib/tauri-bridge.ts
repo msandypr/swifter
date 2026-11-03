@@ -120,6 +120,18 @@ export async function updateAppTargetExe(bundlePath: string, newTargetExe: strin
   await invoke('update_app_target_exe', { bundlePath, newTargetExe });
 }
 
+export async function updateAppConfig(
+  bundlePath: string,
+  newTargetExe?: string | null,
+  newBackend?: string | null
+): Promise<void> {
+  await invoke('update_app_config', {
+    bundlePath,
+    newTargetExe: newTargetExe || null,
+    newBackend: newBackend || null
+  });
+}
+
 export async function uninstallPackagedApp(bundlePath: string): Promise<void> {
   await invoke('uninstall_packaged_app', { bundlePath });
 }

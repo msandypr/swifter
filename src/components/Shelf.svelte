@@ -8,6 +8,7 @@
     openInFinder,
     scanAvailableExesInApp,
     updateAppTargetExe,
+    updateAppConfig,
     uninstallPackagedApp,
     type InstalledAppInfo
   } from '$lib/tauri-bridge';
@@ -24,7 +25,8 @@
     Trash2,
     AlertCircle,
     ChevronDown,
-    HardDrive
+    HardDrive,
+    Layers
   } from 'lucide-svelte';
 
   let { onNavigatePacker }: { onNavigatePacker: () => void } = $props();
@@ -39,8 +41,8 @@
   let availableExes = $state<string[]>([]);
   let isScanningExes = $state(false);
   let chosenExe = $state('');
+  let chosenBackend = $state('');
   let updateStatusMsg = $state('');
-
   // Uninstall state
   let isConfirmUninstallOpen = $state(false);
   let isUninstalling = $state(false);
@@ -64,7 +66,7 @@
     updateStatusMsg = '';
     availableExes = [];
     chosenExe = app.target_exe || '';
-
+    chosenBackend = app.backend || 'DXVK';
     try {
       const exes = await scanAvailableExesInApp(app.bundle_path);
       availableExes = exes;
@@ -88,6 +90,18 @@
         isSettingsOpen = false;
         loadApps();
       }, 600);
+    } catch (err: unknown) {
+      updateStatusMsg = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  async function handleSaveBackend() {
+    if (!selectedApp || !chosenBackend) return;
+    try {
+      await updateAppConfig(selectedApp.bundle_path, null, chosenBackend);
+      updateStatusMsg = 'Graphics engine updated successfully!';
+      selectedApp.backend = chosenBackend;
+      await loadApps();
     } catch (err: unknown) {
       updateStatusMsg = err instanceof Error ? err.message : String(err);
     }
@@ -310,6 +324,64 @@
               </button>
             </div>
             {#if updateStatusMsg && updateStatusMsg.toLowerCase().includes('executable')}
+              <div class="text-[11px] font-mono text-emerald-400 pt-0.5">{updateStatusMsg}</div>
+            {/if}
+          </div>
+
+          <!-- 3. Graphics Engine Backend Selector -->
+          <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-zinc-300 font-medium flex items-center gap-1.5">
+                <Layers class="w-3.5 h-3.5 text-zinc-400" />
+                Graphics Engine Backend
+              </span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700">
+                Current: {selectedApp.backend}
+              </span>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 text-xs">
+              <button
+                type="button"
+                onclick={() => (chosenBackend = 'DXVK')}
+                class="py-2 px-2 rounded-xl border text-center font-medium transition-all cursor-pointer {chosenBackend === 'DXVK' ? 'border-zinc-300 bg-zinc-800 text-zinc-100 shadow-sm' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/60 text-zinc-400'}"
+              >
+                <div>DXVK</div>
+                <div class="text-[10px] text-zinc-500 font-mono">DirectX 9–11</div>
+              </button>
+
+              <button
+                type="button"
+                onclick={() => (chosenBackend = 'D3DMetal')}
+                class="py-2 px-2 rounded-xl border text-center font-medium transition-all cursor-pointer {chosenBackend === 'D3DMetal' ? 'border-zinc-300 bg-zinc-800 text-zinc-100 shadow-sm' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/60 text-zinc-400'}"
+              >
+                <div>D3DMetal</div>
+                <div class="text-[10px] text-zinc-500 font-mono">DirectX 11/12</div>
+              </button>
+
+              <button
+                type="button"
+                onclick={() => (chosenBackend = 'Vanilla')}
+                class="py-2 px-2 rounded-xl border text-center font-medium transition-all cursor-pointer {chosenBackend === 'Vanilla' ? 'border-zinc-300 bg-zinc-800 text-zinc-100 shadow-sm' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/60 text-zinc-400'}"
+              >
+                <div>Vanilla</div>
+                <div class="text-[10px] text-zinc-500 font-mono">OpenGL / Legacy</div>
+              </button>
+            </div>
+
+            <div class="flex items-center justify-between pt-1">
+              <p class="text-[11px] text-zinc-500">
+                Switch translation layer without reinstalling the application.
+              </p>
+              <button
+                onclick={handleSaveBackend}
+                disabled={!chosenBackend || chosenBackend === selectedApp.backend}
+                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs active:scale-95 disabled:opacity-40 transition-all shadow-sm cursor-pointer whitespace-nowrap shrink-0 ml-2"
+              >
+                Apply Engine
+              </button>
+            </div>
+            {#if updateStatusMsg && updateStatusMsg.toLowerCase().includes('engine')}
               <div class="text-[11px] font-mono text-emerald-400 pt-0.5">{updateStatusMsg}</div>
             {/if}
           </div>

@@ -1054,9 +1054,13 @@ pub async fn scan_available_exes_in_app(bundle_path: String) -> Result<Vec<Strin
     Ok(ranked)
 }
 
-/// 13. Updates the target executable of an already packaged application bundle
+/// 13. Updates the target executable and/or translation engine backend of a packaged bundle
 #[tauri::command]
-pub async fn update_app_target_exe(bundle_path: String, new_target_exe: String) -> Result<(), String> {
+pub async fn update_app_config(
+    bundle_path: String,
+    new_target_exe: Option<String>,
+    new_backend: Option<String>,
+) -> Result<(), String> {
     let bundle = PathBuf::from(&bundle_path);
     let config_path = bundle.join("Contents/Resources/swifter.config.json");
     if !config_path.exists() {
@@ -1068,7 +1072,12 @@ pub async fn update_app_target_exe(bundle_path: String, new_target_exe: String) 
     let mut cfg: serde_json::Value = serde_json::from_str(&content)
         .map_err(|e| format!("Failed to parse config: {}", e))?;
 
-    cfg["target_exe_relative"] = serde_json::Value::String(new_target_exe);
+    if let Some(target) = new_target_exe {
+        cfg["target_exe_relative"] = serde_json::Value::String(target);
+    }
+    if let Some(backend) = new_backend {
+        cfg["backend"] = serde_json::Value::String(backend);
+    }
 
     std::fs::write(&config_path, serde_json::to_string_pretty(&cfg).unwrap())
         .map_err(|e| format!("Failed to write updated config: {}", e))?;
@@ -1082,6 +1091,11 @@ pub async fn update_app_target_exe(bundle_path: String, new_target_exe: String) 
     }
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn update_app_target_exe(bundle_path: String, new_target_exe: String) -> Result<(), String> {
+    update_app_config(bundle_path, Some(new_target_exe), None).await
 }
 
 /// 14. Uninstalls a packaged application bundle and removes its isolated micro-prefix

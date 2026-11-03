@@ -23,6 +23,7 @@ pub fn run() {
             commands::run_installer_in_prefix,
             commands::scan_available_exes_in_app,
             commands::update_app_target_exe,
+            commands::update_app_config,
             commands::uninstall_packaged_app,
             commands::remove_all_runtimes,
             commands::pick_file_or_folder,
