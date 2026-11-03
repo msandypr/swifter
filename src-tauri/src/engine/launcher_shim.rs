@@ -173,14 +173,27 @@ fi
 # Set working directory to executable folder so assets load relatively
 cd "$(dirname "$TARGET_EXE")"
 
-# Execute Wine in the background and wait for all Wine processes in this prefix to finish
-# This ensures that if a launcher/updater spawns a child game process and exits, the game process is not terminated
+# Locate wineserver binary to accurately monitor prefix session lifecycle
+WINESERVER_BIN="$(dirname "$WINE_BIN")/wineserver"
+if [ ! -x "$WINESERVER_BIN" ]; then
+    WINESERVER_BIN="$(command -v wineserver 2>/dev/null || echo "")"
+fi
+
+# Execute target binary via Wine in the background
 "$WINE_BIN" "$TARGET_EXE" "$@" &
+WINE_MAIN_PID=$!
 
 sleep 1
-while pgrep -f "$WINEPREFIX" >/dev/null 2>&1; do
-    sleep 1
-done
+
+# Monitor Wine prefix session: wait while any process in this prefix is running
+# This ensures updaters/launchers that spawn a game process and exit do not terminate the game
+if [ -n "$WINESERVER_BIN" ] && [ -x "$WINESERVER_BIN" ]; then
+    while "$WINESERVER_BIN" -k0 >/dev/null 2>&1; do
+        sleep 1
+    done
+else
+    wait $WINE_MAIN_PID 2>/dev/null || true
+fi
 "#);
     script
 }
