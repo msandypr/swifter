@@ -1,6 +1,6 @@
 [package]
 name = "swifter"
-version = "0.2.0"
+version = "0.3.0"
 description = "Portable Windows (.exe) to Native macOS (.app) Packaging Engine"
 authors = ["msandypr"]
 edition = "2024"

@@ -77,7 +77,7 @@
 
     <div>
       <h2 class="text-xl font-bold text-zinc-100">Swifter</h2>
-      <div class="text-xs font-mono text-zinc-400 mt-0.5">Version 0.2</div>
+      <div class="text-xs font-mono text-zinc-400 mt-0.5">Version 0.3</div>
     </div>
 
     <p class="text-xs text-zinc-400 max-w-md leading-relaxed">

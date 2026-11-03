@@ -727,6 +727,6 @@
 
   <!-- Center Bottom Version Footer -->
   <footer class="py-2.5 text-center text-[11px] text-zinc-500 font-mono select-none shrink-0 border-t border-white/[0.03]">
-    Swifter v0.2 • by msandypr
+    Swifter v0.3 • by msandypr
   </footer>
 </div>

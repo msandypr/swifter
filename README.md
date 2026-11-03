@@ -10,7 +10,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-macOS%2012.0+-black?style=flat-square&logo=apple" alt="Platform" />
-  <img src="https://img.shields.io/badge/Version-v0.2-zinc?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-v0.3-zinc?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/Framework-Tauri%20v2-24c8db?style=flat-square&logo=tauri&logoColor=white" alt="Tauri v2" />
   <img src="https://img.shields.io/badge/Frontend-Svelte%205-ff3e00?style=flat-square&logo=svelte&logoColor=white" alt="Svelte 5" />
   <img src="https://img.shields.io/badge/Backend-Rust%202024-black?style=flat-square&logo=rust&logoColor=white" alt="Rust" />
@@ -145,7 +145,7 @@ bun run tauri build
 
 Compiled release artifacts will be output to:
 * `src-tauri/target/release/bundle/macos/Swifter.app`
-* `src-tauri/target/release/bundle/dmg/Swifter_0.2_aarch64.dmg`
+* `src-tauri/target/release/bundle/dmg/Swifter_0.3_aarch64.dmg`
 
 ---
 
