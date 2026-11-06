@@ -1,10 +1,10 @@
 [package]
 name = "swifter-desktop"
-version = "0.3.0"
+version.workspace = true
 description = "Portable Windows (.exe) to Native macOS (.app) Packaging Engine"
-authors = ["msandypr"]
-edition = "2024"
-license = "GPL-3.0-only"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [lib]
 name = "swifter_desktop"

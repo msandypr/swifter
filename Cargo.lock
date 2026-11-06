@@ -4053,7 +4053,7 @@ dependencies = [
 
 [[package]]
 name = "swifter-core"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
  "dirs 5.0.1",
@@ -4070,7 +4070,7 @@ dependencies = [
 
 [[package]]
 name = "swifter-desktop"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
  "dirs 5.0.1",

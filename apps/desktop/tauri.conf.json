@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Swifter",
-  "version": "0.3.0",
-  "identifier": "com.swifter.app",
+  "version": "1.0.0",
+  "identifier": "com.msandypr.swifter",
   "build": {
-    "beforeDevCommand": "bun run --cwd ../ui dev",
+    "beforeDevCommand": "bun run --cwd ../.. version:sync && bun run --cwd ../ui dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run --cwd ../ui build",
+    "beforeBuildCommand": "bun run --cwd ../.. version:sync && bun run --cwd ../ui build",
     "frontendDist": "../ui/build"
   },
   "app": {

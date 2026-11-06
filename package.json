@@ -1,6 +1,6 @@
 {
   "name": "swifter",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "private": true,
   "author": "msandypr",
   "description": "Portable Windows (.exe) to Native macOS (.app) Packaging Engine",
@@ -9,11 +9,13 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "bun --filter swifter-desktop dev",
-    "build": "bun --filter swifter-desktop build",
-    "check": "bun --filter swifter-ui check",
-    "test": "cargo test --workspace",
-    "tauri": "bun --filter swifter-desktop tauri"
+    "version:sync": "bun scripts/sync-version.js",
+    "bump": "bun scripts/sync-version.js",
+    "dev": "bun run version:sync && bun --filter swifter-desktop dev",
+    "build": "bun run version:sync && bun --filter swifter-desktop build",
+    "check": "bun run version:sync && bun --filter swifter-ui check",
+    "test": "bun run version:sync && cargo test --workspace",
+    "tauri": "bun run version:sync && bun --filter swifter-desktop tauri"
   },
   "license": "GPL-3.0-only",
   "dependencies": {

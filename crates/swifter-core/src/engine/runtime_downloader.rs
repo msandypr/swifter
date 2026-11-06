@@ -5,7 +5,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, Instant};
 
-pub const DEFAULT_SWIFTER_USER_AGENT: &str = "Swifter/0.3 (+https://github.com/msandypr/swifter)";
+pub const DEFAULT_SWIFTER_USER_AGENT: &str =
+    concat!("Swifter/", env!("CARGO_PKG_VERSION"), " (+https://github.com/msandypr/swifter)");
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct DownloadProgress {

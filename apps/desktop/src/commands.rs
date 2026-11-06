@@ -36,7 +36,8 @@ pub struct RuntimeStatus {
     pub has_core_fonts: bool,
 }
 
-const SWIFTER_USER_AGENT: &str = "Swifter/0.3 (+https://github.com/msandypr/swifter)";
+const SWIFTER_USER_AGENT: &str =
+    concat!("Swifter/", env!("CARGO_PKG_VERSION"), " (+https://github.com/msandypr/swifter)");
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RuntimeDownloadProgress {
     pub stage: String,

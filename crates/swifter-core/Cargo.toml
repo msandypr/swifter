@@ -1,10 +1,10 @@
 [package]
 name = "swifter-core"
-version = "0.3.0"
-edition = "2024"
-authors = ["msandypr"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
 description = "Core engine and PE analyzer for packaging Windows executables into macOS bundles"
-license = "GPL-3.0-only"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

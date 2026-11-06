@@ -94,6 +94,20 @@
       .join('\n');
   }
 
+  function getDxvkHudMode(envText: string): string {
+    const match = envText.match(/^\s*DXVK_HUD\s*=\s*([^\r\n]+)/m);
+    return match ? match[1].trim() : 'off';
+  }
+
+  function setDxvkHudMode(envText: string, mode: string): string {
+    const lines = envText.split('\n');
+    const filtered = lines.filter((l) => !l.trim().startsWith('DXVK_HUD='));
+    if (mode !== 'off') {
+      filtered.push(`DXVK_HUD=${mode}`);
+    }
+    return filtered.filter((l) => l.trim().length > 0).join('\n');
+  }
+
   async function loadApps() {
     isLoading = true;
     errorMsg = '';
@@ -831,6 +845,47 @@
                 Environment Variables
               </span>
             </div>
+
+            <!-- DXVK HUD Quick Preset Selector -->
+            <div class="space-y-1.5 pt-0.5">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-medium text-zinc-400">DXVK Performance Overlay</span>
+                <span class="text-[10px] font-mono text-zinc-500">
+                  {getDxvkHudMode(chosenEnvVars) === 'off' ? 'Disabled' : `DXVK_HUD=${getDxvkHudMode(chosenEnvVars)}`}
+                </span>
+              </div>
+              <div class="grid grid-cols-4 gap-1.5 text-xs">
+                <button
+                  type="button"
+                  onclick={() => (chosenEnvVars = setDxvkHudMode(chosenEnvVars, 'off'))}
+                  class="py-1.5 px-2 rounded-lg border text-center font-medium transition-all cursor-pointer {getDxvkHudMode(chosenEnvVars) === 'off' ? 'border-zinc-300 bg-zinc-800 text-zinc-100 shadow-sm' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/60 text-zinc-400'}"
+                >
+                  Off
+                </button>
+                <button
+                  type="button"
+                  onclick={() => (chosenEnvVars = setDxvkHudMode(chosenEnvVars, 'fps'))}
+                  class="py-1.5 px-2 rounded-lg border text-center font-medium transition-all cursor-pointer {getDxvkHudMode(chosenEnvVars) === 'fps' ? 'border-zinc-300 bg-zinc-800 text-zinc-100 shadow-sm' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/60 text-zinc-400'}"
+                >
+                  FPS
+                </button>
+                <button
+                  type="button"
+                  onclick={() => (chosenEnvVars = setDxvkHudMode(chosenEnvVars, 'fps,devinfo'))}
+                  class="py-1.5 px-2 rounded-lg border text-center font-medium transition-all cursor-pointer {getDxvkHudMode(chosenEnvVars) === 'fps,devinfo' ? 'border-zinc-300 bg-zinc-800 text-zinc-100 shadow-sm' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/60 text-zinc-400'}"
+                >
+                  FPS + GPU
+                </button>
+                <button
+                  type="button"
+                  onclick={() => (chosenEnvVars = setDxvkHudMode(chosenEnvVars, 'full'))}
+                  class="py-1.5 px-2 rounded-lg border text-center font-medium transition-all cursor-pointer {getDxvkHudMode(chosenEnvVars) === 'full' ? 'border-zinc-300 bg-zinc-800 text-zinc-100 shadow-sm' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/60 text-zinc-400'}"
+                >
+                  Full HUD
+                </button>
+              </div>
+            </div>
+
             <textarea
               bind:value={chosenEnvVars}
               rows={3}
