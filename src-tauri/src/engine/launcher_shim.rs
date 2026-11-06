@@ -9,7 +9,11 @@ pub struct SwifterAppConfig {
     pub enable_msync: bool,
     pub enable_esync: bool,
     pub enable_retina: bool,
+    #[serde(default)]
+    pub launch_args: String,
+    #[serde(default)]
     pub custom_env: std::collections::HashMap<String, String>,
+    #[serde(default)]
     pub wine_custom_path: Option<String>,
 }
 
@@ -27,6 +31,7 @@ pub fn generate_launcher_script(config: &SwifterAppConfig) -> String {
     script.push_str(&format!("ENABLE_MSYNC={}\n", if config.enable_msync { "1" } else { "0" }));
     script.push_str(&format!("ENABLE_ESYNC={}\n", if config.enable_esync { "1" } else { "0" }));
     script.push_str(&format!("ENABLE_RETINA={}\n", if config.enable_retina { "1" } else { "0" }));
+    script.push_str(&format!("LAUNCH_ARGS=\"{}\"\n", config.launch_args.replace('"', "\\\"")));
 
     // Prefix path
     script.push_str("\n# Micro-Prefix location & Architecture\n");
@@ -173,14 +178,26 @@ fi
 # Set working directory to executable folder so assets load relatively
 cd "$(dirname "$TARGET_EXE")"
 
+# Check dynamic launch arguments from swifter.config.json if present
+if [ -f "$RESOURCES_DIR/swifter.config.json" ]; then
+    DYNAMIC_ARGS="$(grep -o '"launch_args"[^,]*' "$RESOURCES_DIR/swifter.config.json" | head -n 1 | cut -d'"' -f4 || echo "")"
+    if [ -n "$DYNAMIC_ARGS" ]; then
+        LAUNCH_ARGS="$DYNAMIC_ARGS"
+    fi
+fi
+
 # Locate wineserver binary to accurately monitor prefix session lifecycle
 WINESERVER_BIN="$(dirname "$WINE_BIN")/wineserver"
 if [ ! -x "$WINESERVER_BIN" ]; then
     WINESERVER_BIN="$(command -v wineserver 2>/dev/null || echo "")"
 fi
 
-# Execute target binary via Wine in the background
-"$WINE_BIN" "$TARGET_EXE" "$@" &
+# Execute target binary via Wine in the background with configured launch arguments
+if [ -n "$LAUNCH_ARGS" ]; then
+    "$WINE_BIN" "$TARGET_EXE" $LAUNCH_ARGS "$@" &
+else
+    "$WINE_BIN" "$TARGET_EXE" "$@" &
+fi
 WINE_MAIN_PID=$!
 
 sleep 1

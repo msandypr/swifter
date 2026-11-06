@@ -13,6 +13,8 @@ pub struct InstalledAppInfo {
     pub bundle_path: String,
     pub backend: String,
     pub target_exe: String,
+    pub launch_args: String,
+    pub custom_env: std::collections::HashMap<String, String>,
     pub icon_path: Option<String>,
     pub icon_data_url: Option<String>,
 }
@@ -25,6 +27,8 @@ pub struct RuntimeStatus {
     pub has_dxvk: bool,
     pub has_d3dmetal: bool,
     pub has_winemetalgl: bool,
+    pub has_vcredist: bool,
+    pub has_core_fonts: bool,
 }
 
 const SWIFTER_USER_AGENT: &str = "Swifter/0.3 (+https://github.com/msandypr/swifter)";
@@ -55,6 +59,8 @@ pub async fn pack_to_app(
     backend_choice: String,
     enable_msync: bool,
     copy_files_instead_of_symlink: bool,
+    launch_args: Option<String>,
+    custom_env: Option<std::collections::HashMap<String, String>>,
 ) -> Result<String, String> {
     let folder = PathBuf::from(&game_folder_path);
 
@@ -76,6 +82,8 @@ pub async fn pack_to_app(
         enable_msync,
         enable_esync: true,
         enable_retina: true,
+        launch_args,
+        custom_env,
         copy_files_instead_of_symlink,
         output_dir: None,
         cached_icns_path: None,
@@ -212,7 +220,12 @@ pub fn is_d3dmetal_available(active_wine_bin: Option<&str>) -> bool {
 
 /// 3. Performs a 3-second dry-run execution using Wine to capture early crash logs
 #[tauri::command]
-pub async fn dry_run_check(exe_path: String, backend: String) -> Result<Vec<String>, String> {
+pub async fn dry_run_check(
+    exe_path: String,
+    backend: String,
+    launch_args: Option<String>,
+    custom_env: Option<std::collections::HashMap<String, String>>,
+) -> Result<Vec<String>, String> {
     let path = PathBuf::from(&exe_path);
     if !path.exists() {
         return Err(format!("File does not exist: {}", exe_path));
@@ -229,8 +242,15 @@ pub async fn dry_run_check(exe_path: String, backend: String) -> Result<Vec<Stri
     let _ = std::fs::create_dir_all(&dry_run_prefix);
 
     let mut cmd = Command::new(&wine_bin);
-    cmd.arg(&path)
-        .current_dir(parent_dir)
+    cmd.arg(&path);
+
+    if let Some(args_str) = &launch_args {
+        for arg in args_str.split_whitespace() {
+            cmd.arg(arg);
+        }
+    }
+
+    cmd.current_dir(parent_dir)
         .env("WINEPREFIX", &dry_run_prefix)
         .env("WINEARCH", "win64")
         .env("WINEDEBUG", "+err")
@@ -238,6 +258,12 @@ pub async fn dry_run_check(exe_path: String, backend: String) -> Result<Vec<Stri
         .env("GALLIUM_DRIVER", "zink")
         .env("MESA_GL_VERSION_OVERRIDE", "4.6")
         .env("MESA_GLSL_VERSION_OVERRIDE", "460");
+
+    if let Some(envs) = &custom_env {
+        for (k, v) in envs {
+            cmd.env(k, v);
+        }
+    }
 
     let mut dll_overrides = String::from("opengl32=n,b;");
     if backend == "D3DMetal" {
@@ -406,6 +432,10 @@ pub async fn list_installed_apps() -> Result<Vec<InstalledAppInfo>, String> {
                                 let slug = cfg["app_slug"].as_str().unwrap_or("app").to_string();
                                 let backend = cfg["backend"].as_str().unwrap_or("DXVK").to_string();
                                 let target_exe = cfg["target_exe_relative"].as_str().unwrap_or("").to_string();
+                                let launch_args = cfg["launch_args"].as_str().unwrap_or("").to_string();
+                                let custom_env = cfg.get("custom_env")
+                                    .and_then(|v| serde_json::from_value::<std::collections::HashMap<String, String>>(v.clone()).ok())
+                                    .unwrap_or_default();
                                 let icon = path.join("Contents/Resources/AppIcon.icns");
                                 let icon_path = if icon.exists() {
                                     Some(icon.to_string_lossy().to_string())
@@ -420,6 +450,8 @@ pub async fn list_installed_apps() -> Result<Vec<InstalledAppInfo>, String> {
                                     bundle_path: path.to_string_lossy().to_string(),
                                     backend,
                                     target_exe,
+                                    launch_args,
+                                    custom_env,
                                     icon_path,
                                     icon_data_url,
                                 });
@@ -494,6 +526,9 @@ pub async fn check_runtime_status() -> Result<RuntimeStatus, String> {
                 || shared_runtime.join("drive_c/windows/system32/dxgi.dll").exists();
             let has_winemetalgl = shared_runtime.join("drive_c/windows/system32/opengl32.dll").exists();
             let has_d3dmetal = is_d3dmetal_available(Some(&bin_path));
+            let has_vcredist = shared_runtime.join("drive_c/windows/system32/vcruntime140.dll").exists();
+            let has_core_fonts = shared_runtime.join("drive_c/windows/fonts/Arial.ttf").exists()
+                || shared_runtime.join("drive_c/windows/fonts/arial.ttf").exists();
 
             Ok(RuntimeStatus {
                 is_installed: true,
@@ -503,6 +538,8 @@ pub async fn check_runtime_status() -> Result<RuntimeStatus, String> {
                 has_dxvk,
                 has_d3dmetal,
                 has_winemetalgl,
+                has_vcredist,
+                has_core_fonts,
             })
         }
         Err(_) => Ok(RuntimeStatus {
@@ -513,6 +550,8 @@ pub async fn check_runtime_status() -> Result<RuntimeStatus, String> {
             has_dxvk: false,
             has_d3dmetal: false,
             has_winemetalgl: false,
+            has_vcredist: false,
+            has_core_fonts: false,
         }),
     }
 }
@@ -940,6 +979,107 @@ pub async fn install_graphics_engines(app: tauri::AppHandle) -> Result<String, S
     .map_err(|e| format!("Task execution error: {}", e))?
 }
 
+/// Downloads and installs official Microsoft Visual C++ 2015-2022 Redistributable into wine-shared
+#[tauri::command]
+pub async fn install_vcredist(app: tauri::AppHandle) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let wine_bin = resolve_wine_binary()?;
+        let shared_runtime = prefix_mgr::get_shared_runtime_dir();
+        let _ = prefix_mgr::ensure_micro_prefix("wine-shared");
+
+        let cache_dir = dirs::cache_dir()
+            .unwrap_or_else(|| PathBuf::from("/tmp"))
+            .join("swifter");
+        let _ = std::fs::create_dir_all(&cache_dir);
+
+        let vcredist_dest = cache_dir.join("vc_redist.x64.exe");
+        let _ = std::fs::remove_file(&vcredist_dest);
+
+        let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
+            stage: "downloading".to_string(),
+            percent: 10.0,
+            downloaded_mb: 0.0,
+            total_mb: 24.2,
+            speed_mb: 0.0,
+            message: "Downloading Visual C++ 2015-2022 x64 Redistributable (~24 MB)...".to_string(),
+        });
+
+        let download_url = "https://aka.ms/vs/17/release/vc_redist.x64.exe";
+        let status = Command::new("/usr/bin/curl")
+            .arg("-L")
+            .arg("-f")
+            .arg("-A")
+            .arg(SWIFTER_USER_AGENT)
+            .arg("--retry")
+            .arg("3")
+            .arg("-o")
+            .arg(&vcredist_dest)
+            .arg(download_url)
+            .status()
+            .map_err(|e| format!("Failed to download vc_redist.x64.exe: {}", e))?;
+
+        if !status.success() || !vcredist_dest.exists() {
+            let _ = std::fs::remove_file(&vcredist_dest);
+            return Err("Failed to download Visual C++ Redistributable from Microsoft.".to_string());
+        }
+
+        let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
+            stage: "configuring".to_string(),
+            percent: 60.0,
+            downloaded_mb: 24.2,
+            total_mb: 24.2,
+            speed_mb: 0.0,
+            message: "Running VC++ installer silently inside shared runtime...".to_string(),
+        });
+
+        let _ = Command::new(&wine_bin)
+            .arg(&vcredist_dest)
+            .arg("/install")
+            .arg("/quiet")
+            .arg("/norestart")
+            .env("WINEPREFIX", &shared_runtime)
+            .env("WINEARCH", "win64")
+            .env("WINEDEBUG", "-all")
+            .status();
+
+        let _ = std::fs::remove_file(&vcredist_dest);
+
+        // Also ensure system fonts are synced
+        let _ = prefix_mgr::sync_macos_fonts_to_shared_prefix();
+
+        let sys32_dll = shared_runtime.join("drive_c/windows/system32/vcruntime140.dll");
+        let msg = if sys32_dll.exists() {
+            "Visual C++ 2015-2022 Redistributable installed and verified in shared runtime.".to_string()
+        } else {
+            "Visual C++ setup completed.".to_string()
+        };
+
+        let _ = app.emit("runtime-download-progress", RuntimeDownloadProgress {
+            stage: "completed".to_string(),
+            percent: 100.0,
+            downloaded_mb: 24.2,
+            total_mb: 24.2,
+            speed_mb: 0.0,
+            message: msg.clone(),
+        });
+
+        Ok(msg)
+    })
+    .await
+    .map_err(|e| format!("Task execution error: {}", e))?
+}
+
+/// Syncs system fonts from macOS into shared Wine runtime fonts directory
+#[tauri::command]
+pub async fn sync_system_fonts() -> Result<String, String> {
+    tokio::task::spawn_blocking(|| {
+        let count = prefix_mgr::sync_macos_fonts_to_shared_prefix()?;
+        Ok(format!("Synced {} TrueType/OpenType font(s) from macOS to shared Wine runtime.", count))
+    })
+    .await
+    .map_err(|e| format!("Task execution error: {}", e))?
+}
+
 /// 10. Removes the Swifter internal Wine runtime folder
 #[tauri::command]
 pub async fn remove_swifter_runtime() -> Result<(), String> {
@@ -1159,12 +1299,14 @@ pub async fn scan_available_exes_in_app(bundle_path: String) -> Result<Vec<Strin
     Ok(ranked)
 }
 
-/// 13. Updates the target executable and/or translation engine backend of a packaged bundle
+/// 13. Updates target executable, graphics engine backend, launch arguments, or environment variables
 #[tauri::command]
 pub async fn update_app_config(
     bundle_path: String,
     new_target_exe: Option<String>,
     new_backend: Option<String>,
+    new_launch_args: Option<String>,
+    new_custom_env: Option<std::collections::HashMap<String, String>>,
 ) -> Result<(), String> {
     let bundle = PathBuf::from(&bundle_path);
     let config_path = bundle.join("Contents/Resources/swifter.config.json");
@@ -1183,6 +1325,12 @@ pub async fn update_app_config(
     if let Some(backend) = new_backend {
         cfg["backend"] = serde_json::Value::String(backend);
     }
+    if let Some(args) = new_launch_args {
+        cfg["launch_args"] = serde_json::Value::String(args);
+    }
+    if let Some(env) = new_custom_env {
+        cfg["custom_env"] = serde_json::to_value(env).unwrap_or_default();
+    }
 
     std::fs::write(&config_path, serde_json::to_string_pretty(&cfg).unwrap())
         .map_err(|e| format!("Failed to write updated config: {}", e))?;
@@ -1200,7 +1348,7 @@ pub async fn update_app_config(
 
 #[tauri::command]
 pub async fn update_app_target_exe(bundle_path: String, new_target_exe: String) -> Result<(), String> {
-    update_app_config(bundle_path, Some(new_target_exe), None).await
+    update_app_config(bundle_path, Some(new_target_exe), None, None, None).await
 }
 
 /// 14. Uninstalls a packaged application bundle and removes its isolated micro-prefix

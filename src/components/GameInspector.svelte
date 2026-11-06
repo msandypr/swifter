@@ -32,8 +32,10 @@
       backend: string;
       enableMsync: boolean;
       copyFiles: boolean;
+      launchArgs?: string;
+      customEnv?: Record<string, string>;
     }) => void;
-    onTestRun: (exePath: string, backend: string) => void;
+    onTestRun: (exePath: string, backend: string, launchArgs?: string, customEnv?: Record<string, string>) => void;
     onBack: () => void;
     isPacking?: boolean;
     isDryRunning?: boolean;
@@ -43,6 +45,26 @@
   let selectedBackend = $state('DXVK');
   let enableMsync = $state(true);
   let copyFiles = $state(false);
+
+  // Launch arguments & custom environment variables
+  let launchArgs = $state('');
+  let customEnvText = $state('');
+  let showEnvFields = $state(false);
+
+  function parseEnvLines(text: string): Record<string, string> {
+    const result: Record<string, string> = {};
+    for (const line of text.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx > 0) {
+        const k = trimmed.slice(0, eqIdx).trim();
+        const v = trimmed.slice(eqIdx + 1).trim();
+        if (k) result[k] = v;
+      }
+    }
+    return result;
+  }
 
   // Target executable and installer states
   let selectedTargetExe = $state('');
@@ -91,12 +113,15 @@
   }
 
   function handleStartPackaging() {
+    const envObj = parseEnvLines(customEnvText);
     onPack({
       appName: appName.trim() || inspection.app_display_name,
       targetExe: selectedTargetExe || inspection.target_exe_name,
       backend: selectedBackend,
       enableMsync,
       copyFiles,
+      launchArgs: launchArgs.trim() || undefined,
+      customEnv: Object.keys(envObj).length > 0 ? envObj : undefined,
     });
   }
 </script>
@@ -340,11 +365,70 @@
     </div>
   </div>
 
+  <!-- Launch Arguments & Custom Environment Variables -->
+  <div class="glass-card rounded-2xl p-6 space-y-4 border border-zinc-800 bg-zinc-900/40">
+    <div>
+      <h3 class="text-sm font-semibold text-zinc-100 flex items-center gap-2">
+        <Terminal class="w-4 h-4 text-zinc-400" />
+        Launch Arguments & Environment Variables
+      </h3>
+      <p class="text-xs text-zinc-400 mt-0.5">
+        Optional startup flags and environment overrides passed to the application
+      </p>
+    </div>
+
+    <div class="space-y-3">
+      <div>
+        <label for="launch-args-input" class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">
+          Command Line Arguments
+        </label>
+        <input
+          id="launch-args-input"
+          type="text"
+          bind:value={launchArgs}
+          class="w-full px-4 py-2 rounded-xl glass-input text-xs font-mono border border-zinc-800 bg-zinc-950/60 text-zinc-100"
+          placeholder="e.g. -novid -windowed -force-d3d11"
+        />
+        <p class="text-[11px] text-zinc-500 mt-1">
+          Flags passed directly to the binary at launch.
+        </p>
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <label for="custom-env-input" class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+            Custom Environment Variables
+          </label>
+          <button
+            type="button"
+            onclick={() => (showEnvFields = !showEnvFields)}
+            class="text-[11px] text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
+          >
+            {showEnvFields ? 'Hide' : 'Configure Env'}
+          </button>
+        </div>
+
+        {#if showEnvFields}
+          <textarea
+            id="custom-env-input"
+            bind:value={customEnvText}
+            rows={3}
+            class="w-full p-3 rounded-xl glass-input text-xs font-mono border border-zinc-800 bg-zinc-950/60 text-zinc-100 resize-y"
+            placeholder="DXVK_HUD=fps&#10;MVK_CONFIG_LOG_LEVEL=1"
+          ></textarea>
+          <p class="text-[11px] text-zinc-500 mt-1">
+            Format: KEY=VALUE (one per line). Useful for DXVK HUD or graphics debugging.
+          </p>
+        {/if}
+      </div>
+    </div>
+  </div>
+
   <!-- Action Buttons -->
   <div class="flex items-center justify-end gap-3 pt-2">
     <!-- 3-Second Dry-Run Button -->
     <button
-      onclick={() => onTestRun(inspection.target_exe_path, selectedBackend)}
+      onclick={() => onTestRun(inspection.target_exe_path, selectedBackend, launchArgs.trim() || undefined, parseEnvLines(customEnvText))}
       disabled={isDryRunning || isPacking || inspection.is_anticheat_blocked || (inspection.is_installer && installerDiscoveredExes.length === 0)}
       class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium text-zinc-200 transition-all cursor-pointer"
     >

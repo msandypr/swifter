@@ -10,6 +10,8 @@
     checkRuntimeStatus,
     installSwifterRuntime,
     installGraphicsEngines,
+    installVcRedist,
+    syncSystemFonts,
     removeSwifterRuntime,
     type SwifterInspection,
     type RuntimeStatus,
@@ -181,6 +183,43 @@
     }
   }
 
+  async function handleInstallVcRedist() {
+    isInstallingRuntime = true;
+    isRuntimeModalOpen = true;
+    runtimeInstallSuccess = false;
+    runtimeInstallMsg = '';
+    runtimeProgress = {
+      stage: 'downloading',
+      percent: 10,
+      downloaded_mb: 0,
+      total_mb: 24.2,
+      speed_mb: 0,
+      message: 'Downloading Visual C++ 2015-2022 x64 Redistributable (~24 MB)...',
+    };
+
+    try {
+      const msg = await installVcRedist();
+      runtimeInstallMsg = msg;
+      runtimeInstallSuccess = true;
+      await refreshRuntimeStatus();
+    } catch (err: unknown) {
+      runtimeInstallMsg = err instanceof Error ? err.message : String(err);
+      runtimeInstallSuccess = false;
+    } finally {
+      isInstallingRuntime = false;
+    }
+  }
+
+  async function handleSyncFonts() {
+    try {
+      const msg = await syncSystemFonts();
+      await refreshRuntimeStatus();
+      errorMessage = '';
+    } catch (err: unknown) {
+      errorMessage = err instanceof Error ? err.message : String(err);
+    }
+  }
+
   async function confirmAndStartRemove() {
     isConfirmRemoveOpen = false;
     isRemovingRuntime = true;
@@ -215,6 +254,8 @@
     backend: string;
     enableMsync: boolean;
     copyFiles: boolean;
+    launchArgs?: string;
+    customEnv?: Record<string, string>;
   }) {
     if (!inspection) return;
 
@@ -244,6 +285,8 @@
         backend_choice: options.backend,
         enable_msync: options.enableMsync,
         copy_files_instead_of_symlink: options.copyFiles,
+        launch_args: options.launchArgs,
+        custom_env: options.customEnv,
       });
 
       createdBundlePath = bundle;
@@ -256,12 +299,17 @@
     }
   }
 
-  async function handleTestRun(exePath: string, backend: string) {
+  async function handleTestRun(
+    exePath: string,
+    backend: string,
+    launchArgs?: string,
+    customEnv?: Record<string, string>
+  ) {
     isDryRunning = true;
     errorMessage = '';
     isShowTerminalLogs = false;
     try {
-      const logs = await dryRunCheck(exePath, backend);
+      const logs = await dryRunCheck(exePath, backend, launchArgs, customEnv);
       dryRunLogs = logs;
       isDryRunDrawerOpen = true;
     } catch (err: unknown) {
@@ -383,6 +431,8 @@
         {runtimeStatus}
         onInstallRequest={requestInstallRuntime}
         onInstallEnginesRequest={handleInstallEngines}
+        onInstallVcRedistRequest={handleInstallVcRedist}
+        onSyncFontsRequest={handleSyncFonts}
         onRemoveRequest={requestRemoveRuntime}
         onRefresh={refreshRuntimeStatus}
       />
@@ -498,16 +548,28 @@
             <div>
               <h3 class="text-sm font-semibold text-zinc-100">
                 {isInstallingRuntime
-                  ? (runtimeProgress?.total_mb === 17.7 ? 'Installing Graphics Engines' : 'Installing Wine Translation Runtime')
+                  ? (runtimeProgress?.total_mb === 17.7
+                      ? 'Installing Graphics Engines'
+                      : runtimeProgress?.total_mb === 24.2
+                      ? 'Installing Visual C++ Redistributable'
+                      : 'Installing Wine Translation Runtime')
                   : runtimeInstallSuccess
-                  ? (runtimeProgress?.total_mb === 17.7 ? 'Graphics Engines Ready' : 'Wine Runtime Ready')
+                  ? (runtimeProgress?.total_mb === 17.7
+                      ? 'Graphics Engines Ready'
+                      : runtimeProgress?.total_mb === 24.2
+                      ? 'Visual C++ Runtime Ready'
+                      : 'Wine Runtime Ready')
                   : 'Installation Notice'}
               </h3>
               <p class="text-xs text-zinc-400">
                 {isInstallingRuntime
-                  ? (runtimeProgress?.total_mb === 17.7 ? 'Downloading and configuring DXVK & WineMetalGL (~17.7 MB).' : 'Downloading and extracting portable package (~182 MB).')
+                  ? (runtimeProgress?.total_mb === 17.7
+                      ? 'Downloading and configuring DXVK & WineMetalGL (~17.7 MB).'
+                      : runtimeProgress?.total_mb === 24.2
+                      ? 'Downloading and configuring Visual C++ 2015-2022 (~24 MB).'
+                      : 'Downloading and extracting portable package (~182 MB).')
                   : runtimeInstallSuccess
-                  ? 'Graphics translation layers configured.'
+                  ? 'Runtime components configured.'
                   : 'Download interrupted.'}
               </p>
             </div>

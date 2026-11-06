@@ -22,6 +22,8 @@ export interface PackOptions {
   backend_choice: string;
   enable_msync: boolean;
   copy_files_instead_of_symlink: boolean;
+  launch_args?: string;
+  custom_env?: Record<string, string>;
 }
 
 export interface InstalledAppInfo {
@@ -30,6 +32,8 @@ export interface InstalledAppInfo {
   bundle_path: string;
   backend: string;
   target_exe: string;
+  launch_args?: string;
+  custom_env?: Record<string, string>;
   icon_path?: string | null;
   icon_data_url?: string | null;
 }
@@ -42,6 +46,8 @@ export interface RuntimeStatus {
   has_dxvk: boolean;
   has_d3dmetal: boolean;
   has_winemetalgl?: boolean;
+  has_vcredist?: boolean;
+  has_core_fonts?: boolean;
 }
 
 export interface RuntimeDownloadProgress {
@@ -65,11 +71,23 @@ export async function packToApp(options: PackOptions): Promise<string> {
     backendChoice: options.backend_choice,
     enableMsync: options.enable_msync,
     copyFilesInsteadOfSymlink: options.copy_files_instead_of_symlink,
+    launchArgs: options.launch_args || null,
+    customEnv: options.custom_env || null,
   });
 }
 
-export async function dryRunCheck(exePath: string, backend: string): Promise<string[]> {
-  return await invoke<string[]>('dry_run_check', { exePath, backend });
+export async function dryRunCheck(
+  exePath: string,
+  backend: string,
+  launchArgs?: string | null,
+  customEnv?: Record<string, string> | null
+): Promise<string[]> {
+  return await invoke<string[]>('dry_run_check', {
+    exePath,
+    backend,
+    launchArgs: launchArgs || null,
+    customEnv: customEnv || null,
+  });
 }
 
 export async function revealSaveFolder(appSlug: string): Promise<void> {
@@ -131,13 +149,25 @@ export async function updateAppTargetExe(bundlePath: string, newTargetExe: strin
 export async function updateAppConfig(
   bundlePath: string,
   newTargetExe?: string | null,
-  newBackend?: string | null
+  newBackend?: string | null,
+  newLaunchArgs?: string | null,
+  newCustomEnv?: Record<string, string> | null
 ): Promise<void> {
   await invoke('update_app_config', {
     bundlePath,
     newTargetExe: newTargetExe || null,
-    newBackend: newBackend || null
+    newBackend: newBackend || null,
+    newLaunchArgs: newLaunchArgs !== undefined ? newLaunchArgs : null,
+    newCustomEnv: newCustomEnv || null,
   });
+}
+
+export async function installVcRedist(): Promise<string> {
+  return await invoke<string>('install_vcredist');
+}
+
+export async function syncSystemFonts(): Promise<string> {
+  return await invoke<string>('sync_system_fonts');
 }
 
 export async function uninstallPackagedApp(bundlePath: string): Promise<void> {

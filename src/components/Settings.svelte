@@ -23,12 +23,16 @@
     runtimeStatus,
     onInstallRequest,
     onInstallEnginesRequest,
+    onInstallVcRedistRequest,
+    onSyncFontsRequest,
     onRemoveRequest,
     onRefresh
   }: {
     runtimeStatus: RuntimeStatus | null;
     onInstallRequest: () => void;
     onInstallEnginesRequest?: () => void;
+    onInstallVcRedistRequest?: () => void;
+    onSyncFontsRequest?: () => void;
     onRemoveRequest: () => void;
     onRefresh: () => void;
   } = $props();
@@ -227,6 +231,72 @@
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
                 Not Installed
               </span>
+            {/if}
+          </div>
+        </div>
+      </div>
+
+      <!-- Common Windows Dependencies Section -->
+      <div class="border-t border-zinc-800/60 pt-3 space-y-2">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-xs font-semibold text-zinc-100">
+              Common Windows Dependencies
+            </div>
+            <p class="text-[11px] text-zinc-500">
+              Shared runtimes and fonts required by many Windows applications
+            </p>
+          </div>
+        </div>
+        <div class="divide-y divide-zinc-800/60 text-xs">
+          <!-- Visual C++ Redistributable -->
+          <div class="flex items-center justify-between py-2 first:pt-0">
+            <div class="flex items-center gap-2">
+              <ShieldCheck class="w-3.5 h-3.5 text-zinc-400" />
+              <div>
+                <span class="text-zinc-200">MS Visual C++ 2015–2022</span>
+                <span class="text-zinc-500 text-[11px] font-mono ml-1.5">(vcruntime140)</span>
+              </div>
+            </div>
+            {#if runtimeStatus?.has_vcredist}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <CheckCircle2 class="w-3 h-3" />
+                Installed
+              </span>
+            {:else}
+              <button
+                onclick={onInstallVcRedistRequest}
+                disabled={!runtimeStatus?.is_installed}
+                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-200 text-[11px] font-medium border border-zinc-700 transition-all cursor-pointer active:scale-95"
+              >
+                <Download class="w-3 h-3 text-zinc-400" />
+                <span>Install VC++ (~24 MB)</span>
+              </button>
+            {/if}
+          </div>
+
+          <!-- Windows Core Fonts -->
+          <div class="flex items-center justify-between py-2 last:pb-0">
+            <div class="flex items-center gap-2">
+              <Database class="w-3.5 h-3.5 text-zinc-400" />
+              <div>
+                <span class="text-zinc-200">Windows Core Fonts</span>
+                <span class="text-zinc-500 text-[11px] font-mono ml-1.5">(Arial, Tahoma, Times, Verdana)</span>
+              </div>
+            </div>
+            {#if runtimeStatus?.has_core_fonts}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <CheckCircle2 class="w-3 h-3" />
+                Synced
+              </span>
+            {:else}
+              <button
+                onclick={onSyncFontsRequest}
+                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-[11px] font-medium border border-zinc-700 transition-all cursor-pointer active:scale-95"
+              >
+                <RefreshCw class="w-3 h-3 text-zinc-400" />
+                <span>Sync Fonts (Instant)</span>
+              </button>
             {/if}
           </div>
         </div>

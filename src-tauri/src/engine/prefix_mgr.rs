@@ -133,7 +133,46 @@ fn ensure_shared_base_skeleton(shared_runtime: &Path) -> Result<(), String> {
             let _ = fs::write(&system_reg, c.replace("#arch=win32", "#arch=win64"));
         }
     }
+
+    // Automatically sync system TrueType fonts into shared fonts directory
+    let _ = sync_macos_fonts_to_shared_prefix();
     Ok(())
+}
+
+/// Discovers TrueType and OpenType fonts on macOS and links/copies them to wine-shared fonts
+pub fn sync_macos_fonts_to_shared_prefix() -> Result<usize, String> {
+    let shared_fonts = get_shared_runtime_dir().join("drive_c/windows/fonts");
+    let _ = fs::create_dir_all(&shared_fonts);
+
+    let sources = [
+        PathBuf::from("/System/Library/Fonts/Supplemental"),
+        PathBuf::from("/Library/Fonts"),
+    ];
+
+    let mut count = 0;
+    for src in sources {
+        if src.exists() {
+            if let Ok(entries) = fs::read_dir(src) {
+                for entry in entries.filter_map(|e| e.ok()) {
+                    let path = entry.path();
+                    if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                        if ext.eq_ignore_ascii_case("ttf") || ext.eq_ignore_ascii_case("otf") {
+                            let file_name = entry.file_name();
+                            let target = shared_fonts.join(&file_name);
+                            if !target.exists() {
+                                if symlink(&path, &target).is_err() {
+                                    let _ = fs::copy(&path, &target);
+                                }
+                                count += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(count)
 }
 
 fn safe_symlink(target: &Path, link_path: &Path) {

@@ -22,7 +22,8 @@
     Trash2,
     AlertCircle,
     ChevronDown,
-    Layers
+    Layers,
+    Terminal
   } from 'lucide-svelte';
 
   let { onNavigatePacker }: { onNavigatePacker: () => void } = $props();
@@ -38,10 +39,34 @@
   let isScanningExes = $state(false);
   let chosenExe = $state('');
   let chosenBackend = $state('');
+  let chosenLaunchArgs = $state('');
+  let chosenEnvVars = $state('');
   let updateStatusMsg = $state('');
   // Uninstall state
   let isConfirmUninstallOpen = $state(false);
   let isUninstalling = $state(false);
+
+  function parseEnvLines(text: string): Record<string, string> {
+    const result: Record<string, string> = {};
+    for (const line of text.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx > 0) {
+        const k = trimmed.slice(0, eqIdx).trim();
+        const v = trimmed.slice(eqIdx + 1).trim();
+        if (k) result[k] = v;
+      }
+    }
+    return result;
+  }
+
+  function envToLines(env: Record<string, string> | undefined): string {
+    if (!env) return '';
+    return Object.entries(env)
+      .map(([k, v]) => `${k}=${v}`)
+      .join('\n');
+  }
 
   async function loadApps() {
     isLoading = true;
@@ -63,6 +88,8 @@
     availableExes = [];
     chosenExe = app.target_exe || '';
     chosenBackend = app.backend || 'DXVK';
+    chosenLaunchArgs = app.launch_args || '';
+    chosenEnvVars = envToLines(app.custom_env);
     try {
       const exes = await scanAvailableExesInApp(app.bundle_path);
       availableExes = exes;
@@ -97,6 +124,31 @@
       await updateAppConfig(selectedApp.bundle_path, null, chosenBackend);
       updateStatusMsg = 'Graphics engine updated successfully!';
       selectedApp.backend = chosenBackend;
+      await loadApps();
+    } catch (err: unknown) {
+      updateStatusMsg = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  async function handleSaveLaunchArgs() {
+    if (!selectedApp) return;
+    try {
+      await updateAppConfig(selectedApp.bundle_path, null, null, chosenLaunchArgs);
+      updateStatusMsg = 'Launch arguments saved successfully!';
+      selectedApp.launch_args = chosenLaunchArgs;
+      await loadApps();
+    } catch (err: unknown) {
+      updateStatusMsg = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  async function handleSaveEnvVars() {
+    if (!selectedApp) return;
+    try {
+      const envObj = parseEnvLines(chosenEnvVars);
+      await updateAppConfig(selectedApp.bundle_path, null, null, null, envObj);
+      updateStatusMsg = 'Environment variables saved successfully!';
+      selectedApp.custom_env = envObj;
       await loadApps();
     } catch (err: unknown) {
       updateStatusMsg = err instanceof Error ? err.message : String(err);
@@ -387,7 +439,70 @@
               <div class="text-[11px] font-mono text-emerald-400 pt-0.5">{updateStatusMsg}</div>
             {/if}
           </div>
-          <!-- 4. Uninstall Application Section -->
+
+          <!-- 4. Launch Arguments -->
+          <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-zinc-300 font-medium flex items-center gap-1.5">
+                <Terminal class="w-3.5 h-3.5 text-zinc-400" />
+                Launch Arguments
+              </span>
+            </div>
+            <input
+              type="text"
+              bind:value={chosenLaunchArgs}
+              placeholder="e.g. -novid -windowed -force-d3d11"
+              class="w-full h-10 px-3 rounded-xl glass-input text-xs font-mono text-zinc-200 border border-zinc-800 bg-zinc-900"
+            />
+            <div class="flex items-center justify-between pt-1">
+              <p class="text-[11px] text-zinc-500">
+                Command-line flags passed directly to binary.
+              </p>
+              <button
+                onclick={handleSaveLaunchArgs}
+                disabled={chosenLaunchArgs === (selectedApp.launch_args || '')}
+                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs active:scale-95 disabled:opacity-40 transition-all shadow-sm cursor-pointer whitespace-nowrap shrink-0 ml-2"
+              >
+                Save Arguments
+              </button>
+            </div>
+            {#if updateStatusMsg && updateStatusMsg.toLowerCase().includes('argument')}
+              <div class="text-[11px] font-mono text-emerald-400 pt-0.5">{updateStatusMsg}</div>
+            {/if}
+          </div>
+
+          <!-- 5. Custom Environment Variables -->
+          <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-zinc-300 font-medium flex items-center gap-1.5">
+                <Terminal class="w-3.5 h-3.5 text-zinc-400" />
+                Environment Variables
+              </span>
+            </div>
+            <textarea
+              bind:value={chosenEnvVars}
+              rows={3}
+              placeholder="DXVK_HUD=fps&#10;MVK_CONFIG_LOG_LEVEL=1"
+              class="w-full p-2.5 rounded-xl glass-input text-xs font-mono text-zinc-200 border border-zinc-800 bg-zinc-900 resize-y"
+            ></textarea>
+            <div class="flex items-center justify-between pt-1">
+              <p class="text-[11px] text-zinc-500">
+                Format: KEY=VALUE (one per line).
+              </p>
+              <button
+                onclick={handleSaveEnvVars}
+                disabled={chosenEnvVars === envToLines(selectedApp.custom_env)}
+                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs active:scale-95 disabled:opacity-40 transition-all shadow-sm cursor-pointer whitespace-nowrap shrink-0 ml-2"
+              >
+                Save Env
+              </button>
+            </div>
+            {#if updateStatusMsg && updateStatusMsg.toLowerCase().includes('environment')}
+              <div class="text-[11px] font-mono text-emerald-400 pt-0.5">{updateStatusMsg}</div>
+            {/if}
+          </div>
+
+          <!-- 6. Uninstall Application Section -->
           <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 flex items-center justify-between gap-3">
             <div class="min-w-0 space-y-0.5">
               <span class="text-zinc-300 font-medium block">Uninstall Application</span>

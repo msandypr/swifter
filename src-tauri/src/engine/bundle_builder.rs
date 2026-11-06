@@ -15,6 +15,8 @@ pub struct BuildAppOptions {
     pub enable_msync: bool,
     pub enable_esync: bool,
     pub enable_retina: bool,
+    pub launch_args: Option<String>,
+    pub custom_env: Option<std::collections::HashMap<String, String>>,
     pub copy_files_instead_of_symlink: bool,
     pub output_dir: Option<PathBuf>,
     pub cached_icns_path: Option<PathBuf>,
@@ -80,7 +82,8 @@ pub fn build_application_bundle(options: BuildAppOptions) -> Result<PathBuf, Str
         enable_msync: options.enable_msync,
         enable_esync: options.enable_esync,
         enable_retina: options.enable_retina,
-        custom_env: std::collections::HashMap::new(),
+        launch_args: options.launch_args.unwrap_or_default(),
+        custom_env: options.custom_env.unwrap_or_default(),
         wine_custom_path: None,
     };
 
@@ -300,6 +303,8 @@ mod tests {
             enable_msync: true,
             enable_esync: true,
             enable_retina: false,
+            launch_args: Some("-windowed".to_string()),
+            custom_env: None,
             copy_files_instead_of_symlink: false,
             output_dir: Some(out_dir.clone()),
             cached_icns_path: None,
