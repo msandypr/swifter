@@ -284,10 +284,19 @@
 
   <!-- Game Settings Modal -->
   {#if isSettingsOpen && selectedApp}
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-      <div class="w-full max-w-lg glass-panel rounded-2xl p-6 shadow-2xl border border-zinc-800 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+      onclick={(e) => { if (e.target === e.currentTarget) isSettingsOpen = false; }}
+      role="presentation"
+    >
+      <div
+        class="w-full max-w-lg max-h-[85vh] glass-panel rounded-2xl p-6 shadow-2xl border border-zinc-800 flex flex-col animate-in fade-in zoom-in-95 duration-150"
+        role="dialog"
+        aria-labelledby="options-modal-title"
+        aria-modal="true"
+      >
         <!-- Modal Header -->
-        <div class="flex items-center justify-between pb-2 border-b border-zinc-800">
+        <div class="flex items-center justify-between pb-3.5 border-b border-zinc-800 shrink-0">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 shrink-0 overflow-hidden p-1">
               {#if selectedApp.icon_data_url}
@@ -297,17 +306,22 @@
               {/if}
             </div>
             <div>
-              <h3 class="text-sm font-semibold text-zinc-100">{selectedApp.name}</h3>
+              <h3 id="options-modal-title" class="text-sm font-semibold text-zinc-100">{selectedApp.name}</h3>
               <p class="text-xs text-zinc-400">Application Configuration & Paths</p>
             </div>
           </div>
 
-          <button onclick={() => (isSettingsOpen = false)} class="p-1 text-zinc-400 hover:text-zinc-200 rounded-lg hover:bg-zinc-800 transition-colors">
+          <button
+            onclick={() => (isSettingsOpen = false)}
+            aria-label="Close Options"
+            class="p-1.5 text-zinc-400 hover:text-zinc-200 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
+          >
             <X class="w-4 h-4" />
           </button>
         </div>
 
-        <div class="space-y-3 text-xs">
+        <!-- Scrollable Options Body -->
+        <div class="flex-1 min-h-0 overflow-y-auto py-3.5 pr-1.5 space-y-3 text-xs overscroll-contain">
           <!-- 1. Bundle Location & Reveal in Finder -->
           <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 flex items-center justify-between gap-3">
             <div class="min-w-0 space-y-0.5">
@@ -518,18 +532,19 @@
           </div>
         </div>
 
-        {#if updateStatusMsg}
-          <div class="text-xs font-mono text-emerald-400 px-1">{updateStatusMsg}</div>
-        {/if}
-
         <!-- Footer Actions -->
-        <div class="flex items-center justify-end pt-2 border-t border-zinc-800">
-          <button
-            onclick={() => (isSettingsOpen = false)}
-            class="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white text-xs font-semibold transition-all shadow-sm cursor-pointer"
-          >
-            Close
-          </button>
+        <div class="shrink-0 pt-3 border-t border-zinc-800 space-y-2">
+          {#if updateStatusMsg}
+            <div class="text-xs font-mono text-emerald-400 px-1">{updateStatusMsg}</div>
+          {/if}
+          <div class="flex items-center justify-end">
+            <button
+              onclick={() => (isSettingsOpen = false)}
+              class="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-zinc-200 text-xs font-semibold border border-zinc-700 transition-all shadow-sm cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -537,7 +552,11 @@
 
   <!-- Confirm Uninstall Modal -->
   {#if isConfirmUninstallOpen && selectedApp}
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+      onclick={(e) => { if (e.target === e.currentTarget && !isUninstalling) isConfirmUninstallOpen = false; }}
+      role="presentation"
+    >
       <div class="w-full max-w-sm glass-panel rounded-2xl p-5 shadow-2xl border border-zinc-800 space-y-4 animate-in fade-in zoom-in-95 duration-150">
         <div class="flex items-start gap-3">
           <div class="w-9 h-9 rounded-xl bg-zinc-800 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
