@@ -75,33 +75,34 @@ xattr -cr /Applications/Swifter.app
 
 ```text
 swifter/
-├── src-tauri/
-│   ├── src/
-│   │   ├── main.rs              # macOS desktop harness entrypoint
-│   │   ├── lib.rs               # Command registry and plugin initialization
-│   │   ├── commands.rs          # Native IPC commands (inspect, pack, dialog, status)
-│   │   ├── analyzer/
-│   │   │   ├── pe_parser.rs     # PE header parsing, architecture check, anti-cheat detection
-│   │   │   ├── folder_scan.rs   # Framework heuristics (Unity, Godot, GameMaker, Unreal)
-│   │   │   └── icon_extract.rs  # In-memory RT_GROUP_ICON parsing to multi-tier .icns
-│   │   └── engine/
-│   │       ├── prefix_mgr.rs    # Micro-prefix skeleton & symlink manager
-│   │       ├── launcher_shim.rs # POSIX launcher script generation
-│   │       ├── bundle_builder.rs# macOS .app bundle assembler (Info.plist, PkgInfo)
-│   │       └── recipes.rs       # Engine translation presets
-├── src/                         # Svelte 5 + Tailwind CSS Frontend
-│   ├── routes/
-│   │   └── +page.svelte         # Segmented navigation & main layout router
-│   ├── components/
-│   │   ├── Dropzone.svelte      # Modern glass drop target & native picker trigger
-│   │   ├── GameInspector.svelte # Configuration card, backend selector, dry-run test
-│   │   ├── ProgressModal.svelte # Real-time packaging progress modal
-│   │   ├── Shelf.svelte         # Library view, executable switcher, AppData reveal
-│   │   ├── Settings.svelte      # Runtime status, engine checks, storage cleanup
-│   │   ├── Guide.svelte         # Embedded quick walkthrough
-│   │   └── About.svelte         # Contributor credits & license information
-│   └── lib/
-│       └── tauri-bridge.ts      # TypeScript interfaces and Tauri invoke wrappers
+├── crates/
+│   └── swifter-core/            # Pure headless Rust packaging engine
+│       ├── recipes/             # Bundled engine translation presets
+│       └── src/
+│           ├── analyzer/        # PE parsing, folder heuristics & icon extraction
+│           │   ├── pe_parser.rs
+│           │   ├── folder_scan.rs
+│           │   └── icon_extract.rs
+│           └── engine/          # Wine micro-prefix, launcher shim & bundle assembly
+│               ├── prefix_mgr.rs
+│               ├── launcher_shim.rs
+│               ├── bundle_builder.rs
+│               └── recipes.rs
+├── apps/
+│   ├── desktop/                 # Tauri native application harness
+│   │   ├── src/
+│   │   │   ├── main.rs          # macOS desktop harness entrypoint
+│   │   │   ├── lib.rs           # Plugin registry & lifecycle
+│   │   │   └── commands.rs      # Native IPC command bridges
+│   │   └── tauri.conf.json      # Tauri application configuration
+│   └── ui/                      # SvelteKit 5 + Tailwind CSS v4 Frontend
+│       ├── src/
+│       │   ├── routes/          # Navigation & page routing
+│       │   ├── components/      # UI components (Dropzone, Inspector, Shelf, etc.)
+│       │   └── lib/             # Typed Tauri IPC bridges
+│       └── package.json
+├── Cargo.toml                   # Root Cargo workspace
+└── package.json                 # Root Bun workspace
 ```
 
 ### Prerequisites
@@ -121,31 +122,32 @@ cd swifter
 bun install
 
 # Run development server with hot-reload
-bun run tauri dev
+bun run dev
 ```
 
 ### Verification & Testing
 
 ```bash
-# Rust unit and integration tests
-cargo test --manifest-path src-tauri/Cargo.toml
+# Rust workspace unit and integration tests
+bun run test
+# or: cargo test --workspace
 
 # Svelte / TypeScript type-check
 bun run check
 
-# Frontend production build
+# Desktop release build
 bun run build
 ```
 
 ### Building Release Bundles
 
 ```bash
-bun run tauri build
+bun run build
 ```
 
 Compiled release artifacts will be output to:
-* `src-tauri/target/release/bundle/macos/Swifter.app`
-* `src-tauri/target/release/bundle/dmg/Swifter_0.3_aarch64.dmg`
+* `target/release/bundle/macos/Swifter.app`
+* `target/release/bundle/dmg/Swifter_0.3_aarch64.dmg`
 
 ---
 

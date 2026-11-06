@@ -4,10 +4,10 @@
   "version": "0.3.0",
   "identifier": "com.swifter.app",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "bun run --cwd ../ui dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
-    "frontendDist": "../build"
+    "beforeBuildCommand": "bun run --cwd ../ui build",
+    "frontendDist": "../ui/build"
   },
   "app": {
     "macOSPrivateApi": true,

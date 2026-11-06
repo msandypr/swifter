@@ -2,10 +2,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
-use crate::analyzer::{inspect_target_path, SwifterInspection};
-use crate::engine::bundle_builder::{self, BuildAppOptions};
-use crate::engine::launcher_shim;
-use crate::engine::prefix_mgr;
+use swifter_core::analyzer::{inspect_target_path, SwifterInspection};
+use swifter_core::engine::bundle_builder::{self, BuildAppOptions};
+use swifter_core::engine::launcher_shim;
+use swifter_core::engine::prefix_mgr;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct InstalledAppInfo {
     pub name: String,

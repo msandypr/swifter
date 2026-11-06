@@ -1,9 +1,9 @@
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
-use swifter_lib::analyzer::folder_scan::{detect_game_engine, DetectedEngine};
-use swifter_lib::engine::bundle_builder::{build_application_bundle, BuildAppOptions};
-use swifter_lib::engine::prefix_mgr::get_prefix_dir;
+use swifter_core::analyzer::folder_scan::{detect_game_engine, DetectedEngine};
+use swifter_core::engine::bundle_builder::{build_application_bundle, BuildAppOptions};
+use swifter_core::engine::prefix_mgr::get_prefix_dir;
 
 #[test]
 fn test_end_to_end_game_packaging_pipeline() {

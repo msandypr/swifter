@@ -1,0 +1,20 @@
+[package]
+name = "swifter-core"
+version = "0.3.0"
+edition = "2024"
+authors = ["msandypr"]
+description = "Core engine and PE analyzer for packaging Windows executables into macOS bundles"
+license = "GPL-3.0-only"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+pelite = "0.10"
+image = "0.25"
+icns = "0.3"
+walkdir = "2.4"
+regex = "1.10"
+dirs = "5.0"
+slugify = "0.1.0"
+sha2 = "0.10"
+base64 = "0.22"

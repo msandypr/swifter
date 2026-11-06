@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-const DEFAULT_RECIPES_JSON: &str = include_str!("../../../recipes/default_recipes.json");
+const DEFAULT_RECIPES_JSON: &str = include_str!("../../recipes/default_recipes.json");
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct BackendConfig {
