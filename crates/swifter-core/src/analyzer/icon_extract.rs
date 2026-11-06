@@ -125,8 +125,21 @@ pub fn pack_image_to_icns(base_img: &DynamicImage, output_path: &Path) -> Result
     ];
 
     for &(size, icon_type) in target_sizes {
-        let resized = base_img.resize_exact(size, size, image::imageops::FilterType::Lanczos3);
-        let rgba = resized.to_rgba8();
+        let filter = if size <= 32 {
+            image::imageops::FilterType::CatmullRom
+        } else {
+            image::imageops::FilterType::Lanczos3
+        };
+        let resized = base_img.resize_exact(size, size, filter);
+        let mut rgba = resized.to_rgba8();
+        // Clean transparent edge ringing to prevent white/gray halo in list views
+        if size <= 32 {
+            for pixel in rgba.pixels_mut() {
+                if pixel[3] <= 2 {
+                    *pixel = image::Rgba([0, 0, 0, 0]);
+                }
+            }
+        }
         let icns_image = IcnsImage::from_data(PixelFormat::RGBA, size, size, rgba.into_raw())
             .map_err(|e| format!("Failed to create ICNS image frame {}x{}: {}", size, size, e))?;
 

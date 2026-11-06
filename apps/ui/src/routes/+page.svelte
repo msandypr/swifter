@@ -339,7 +339,7 @@
         <img
           src="/logo-swifter.png"
           alt="Swifter"
-          class="w-5 h-5 rounded object-contain"
+          class="w-5 h-5 object-contain"
         />
       </div>
 
