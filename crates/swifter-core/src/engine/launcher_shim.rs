@@ -106,7 +106,7 @@ export MESA_GLSL_VERSION_OVERRIDE=460
 
     // Backend environment variables
     script.push_str(r#"# Translation backend configuration
-export WINEDEBUG="-all"
+export WINEDEBUG="fixme-all,err-all,+err"
 
 if [ "$ENABLE_MSYNC" = "1" ]; then
     export WINEMSYNC=1
@@ -192,11 +192,23 @@ if [ ! -x "$WINESERVER_BIN" ]; then
     WINESERVER_BIN="$(command -v wineserver 2>/dev/null || echo "")"
 fi
 
+# Setup session logging in micro-prefix
+LOG_FILE="$WINEPREFIX/last_run.log"
+echo "=== Swifter Launch Session: $(date) ===" > "$LOG_FILE"
+echo "App: $APP_NAME ($APP_SLUG)" >> "$LOG_FILE"
+echo "Executable: $TARGET_EXE" >> "$LOG_FILE"
+echo "Backend: $BACKEND" >> "$LOG_FILE"
+echo "Wine: $WINE_BIN" >> "$LOG_FILE"
+if [ -n "$LAUNCH_ARGS" ]; then
+    echo "Launch Arguments: $LAUNCH_ARGS" >> "$LOG_FILE"
+fi
+echo "=========================================" >> "$LOG_FILE"
+
 # Execute target binary via Wine in the background with configured launch arguments
 if [ -n "$LAUNCH_ARGS" ]; then
-    "$WINE_BIN" "$TARGET_EXE" $LAUNCH_ARGS "$@" &
+    "$WINE_BIN" "$TARGET_EXE" $LAUNCH_ARGS "$@" >> "$LOG_FILE" 2>&1 &
 else
-    "$WINE_BIN" "$TARGET_EXE" "$@" &
+    "$WINE_BIN" "$TARGET_EXE" "$@" >> "$LOG_FILE" 2>&1 &
 fi
 WINE_MAIN_PID=$!
 

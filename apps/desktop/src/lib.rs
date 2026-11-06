@@ -30,6 +30,12 @@ pub fn run() {
             commands::install_graphics_engines,
             commands::install_vcredist,
             commands::sync_system_fonts,
+            commands::launch_wine_tool,
+            commands::kill_prefix_processes,
+            commands::open_prefix_terminal,
+            commands::get_app_log,
+            commands::open_log_in_editor,
+            commands::clear_app_log,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Swifter application");

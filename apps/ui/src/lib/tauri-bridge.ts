@@ -178,6 +178,31 @@ export async function removeAllRuntimes(): Promise<void> {
   await invoke('remove_all_runtimes');
 }
 
+export async function launchWineTool(bundlePath: string, tool: 'winecfg' | 'regedit' | 'taskmgr' | 'control' | 'cmd'): Promise<void> {
+  await invoke('launch_wine_tool', { bundlePath, tool });
+}
+
+export async function killPrefixProcesses(bundlePath: string): Promise<string> {
+  return await invoke<string>('kill_prefix_processes', { bundlePath });
+}
+
+export async function openPrefixTerminal(bundlePath: string): Promise<void> {
+  await invoke('open_prefix_terminal', { bundlePath });
+}
+
+export async function getAppLog(bundlePath: string): Promise<string> {
+  return await invoke<string>('get_app_log', { bundlePath });
+}
+
+export async function openLogInEditor(bundlePath: string): Promise<void> {
+  await invoke('open_log_in_editor', { bundlePath });
+}
+
+export async function clearAppLog(bundlePath: string): Promise<void> {
+  await invoke('clear_app_log', { bundlePath });
+}
+
+
 export async function pickFileOrFolder(): Promise<string | null> {
   return await invoke<string | null>('pick_file_or_folder');
 }

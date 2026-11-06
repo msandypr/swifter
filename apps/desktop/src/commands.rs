@@ -1451,6 +1451,202 @@ pub async fn pick_file_or_folder() -> Result<Option<String>, String> {
     .map_err(|e| e.to_string())?
 }
 
+/// Helper to extract app name and micro-prefix directory from a .app bundle path
+pub fn get_prefix_dir_for_bundle(bundle_path: &str) -> (String, PathBuf) {
+    let bundle = Path::new(bundle_path);
+    let config_path = bundle.join("Contents/Resources/swifter.config.json");
+    let mut slug = bundle
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| "app".to_string())
+        .to_lowercase()
+        .replace(' ', "-");
+    let mut app_name = slug.clone();
+
+    if config_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&config_path) {
+            if let Ok(cfg) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(s) = cfg.get("app_slug").and_then(|v| v.as_str()) {
+                    slug = s.to_string();
+                }
+                if let Some(n) = cfg.get("app_name").and_then(|v| v.as_str()) {
+                    app_name = n.to_string();
+                }
+            }
+        }
+    }
+
+    let prefix_dir = prefix_mgr::get_prefix_dir(&slug);
+    (app_name, prefix_dir)
+}
+
+/// 17. Launches a Wine system utility (winecfg, regedit, taskmgr, control, cmd) in the app's micro-prefix
+#[tauri::command]
+pub async fn launch_wine_tool(bundle_path: String, tool: String) -> Result<(), String> {
+    let wine_bin = resolve_wine_binary()?;
+    let (app_name, prefix_dir) = get_prefix_dir_for_bundle(&bundle_path);
+
+    if !prefix_dir.exists() {
+        if let Some(slug) = prefix_dir.file_name().and_then(|s| s.to_str()) {
+            let _ = prefix_mgr::ensure_micro_prefix(slug);
+        }
+    }
+
+    let tool_name = tool.trim().to_lowercase();
+    let valid_tools = ["winecfg", "regedit", "taskmgr", "control", "cmd"];
+    if !valid_tools.contains(&tool_name.as_str()) {
+        return Err(format!("Unsupported Wine tool: '{}'. Allowed tools: winecfg, regedit, taskmgr, control, cmd", tool_name));
+    }
+
+    let mut cmd = Command::new(&wine_bin);
+    cmd.arg(&tool_name)
+        .env("WINEPREFIX", &prefix_dir)
+        .env("WINEARCH", "win64")
+        .env("WINEDEBUG", "-all")
+        .env("MESA_LOADER_DRIVER_OVERRIDE", "zink")
+        .env("GALLIUM_DRIVER", "zink");
+
+    cmd.spawn()
+        .map_err(|e| format!("Failed to launch {} for {}: {}", tool_name, app_name, e))?;
+
+    Ok(())
+}
+
+/// 18. Terminates all active Wine processes running in this application's prefix (wineserver -k)
+#[tauri::command]
+pub async fn kill_prefix_processes(bundle_path: String) -> Result<String, String> {
+    let wine_bin = resolve_wine_binary().ok();
+    let (app_name, prefix_dir) = get_prefix_dir_for_bundle(&bundle_path);
+
+    if !prefix_dir.exists() {
+        return Ok(format!("Prefix does not exist for {}.", app_name));
+    }
+
+    let mut executed = false;
+    if let Some(bin) = &wine_bin {
+        let ws = Path::new(bin).parent().map(|p| p.join("wineserver"));
+        if let Some(wineserver) = ws {
+            if wineserver.exists() {
+                let _ = Command::new(&wineserver)
+                    .arg("-k")
+                    .env("WINEPREFIX", &prefix_dir)
+                    .output();
+                executed = true;
+            }
+        }
+    }
+
+    if !executed {
+        let _ = Command::new("wineserver")
+            .arg("-k")
+            .env("WINEPREFIX", &prefix_dir)
+            .output();
+    }
+
+    Ok(format!("All Wine processes in {}'s prefix have been terminated.", app_name))
+}
+
+/// 19. Opens macOS Terminal.app configured with the application's WINEPREFIX and Wine environment
+#[tauri::command]
+pub async fn open_prefix_terminal(bundle_path: String) -> Result<(), String> {
+    let wine_bin = resolve_wine_binary().unwrap_or_else(|_| "wine".to_string());
+    let (app_name, prefix_dir) = get_prefix_dir_for_bundle(&bundle_path);
+
+    if !prefix_dir.exists() {
+        if let Some(slug) = prefix_dir.file_name().and_then(|s| s.to_str()) {
+            let _ = prefix_mgr::ensure_micro_prefix(slug);
+        }
+    }
+
+    let bin_parent = Path::new(&wine_bin)
+        .parent()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default();
+
+    let p_str = prefix_dir.to_string_lossy().to_string();
+
+    let terminal_script = format!(
+        "export WINEPREFIX='{}'; export WINEARCH=win64; export PATH='{}':$PATH; cd '{}'; clear; echo '=== Swifter Wine Terminal ({}) ==='; echo 'Prefix: {}'; echo 'Wine: {}'; echo 'Type \"wine <command>\" or \"wineserver -k\"'; echo '';",
+        p_str, bin_parent, p_str, app_name, p_str, wine_bin
+    );
+
+    let apple_script = format!(
+        "tell application \"Terminal\"\n do script \"{}\"\n activate\n end tell",
+        terminal_script.replace('"', "\\\"")
+    );
+
+    Command::new("osascript")
+        .arg("-e")
+        .arg(&apple_script)
+        .spawn()
+        .map_err(|e| format!("Failed to open Terminal: {}", e))?;
+
+    Ok(())
+}
+
+/// 20. Reads the diagnostic last_run.log from the application's micro-prefix
+#[tauri::command]
+pub async fn get_app_log(bundle_path: String) -> Result<String, String> {
+    let (app_name, prefix_dir) = get_prefix_dir_for_bundle(&bundle_path);
+    let log_path = prefix_dir.join("last_run.log");
+
+    if !log_path.exists() {
+        return Ok(format!(
+            "=== No log file found for {} ===\n\nPrefix Location:\n{}\n\nLog Path:\n{}\n\nTo generate diagnostics, launch the application at least once.",
+            app_name, prefix_dir.display(), log_path.display()
+        ));
+    }
+
+    let content = std::fs::read_to_string(&log_path)
+        .map_err(|e| format!("Failed to read log file: {}", e))?;
+
+    if content.trim().is_empty() {
+        return Ok(format!("=== Diagnostic log is currently empty ===\nLocation: {}", log_path.display()));
+    }
+
+    // Keep log manageable for UI (max ~250KB)
+    if content.len() > 250_000 {
+        let truncated: String = content.chars().rev().take(250_000).collect();
+        let forward: String = truncated.chars().rev().collect();
+        return Ok(format!("[... earlier log entries truncated ...]\n{}", forward));
+    }
+
+    Ok(content)
+}
+
+/// 21. Opens last_run.log in macOS TextEdit / default text editor
+#[tauri::command]
+pub async fn open_log_in_editor(bundle_path: String) -> Result<(), String> {
+    let (app_name, prefix_dir) = get_prefix_dir_for_bundle(&bundle_path);
+    let log_path = prefix_dir.join("last_run.log");
+
+    if !log_path.exists() {
+        let _ = std::fs::create_dir_all(&prefix_dir);
+        let _ = std::fs::write(&log_path, format!("=== Swifter Diagnostic Log for {} ===\n(No launch recorded yet)\n", app_name));
+    }
+
+    Command::new("open")
+        .arg("-t")
+        .arg(&log_path)
+        .spawn()
+        .map_err(|e| format!("Failed to open log file in editor: {}", e))?;
+
+    Ok(())
+}
+
+/// 22. Clears last_run.log in the application's micro-prefix
+#[tauri::command]
+pub async fn clear_app_log(bundle_path: String) -> Result<(), String> {
+    let (_, prefix_dir) = get_prefix_dir_for_bundle(&bundle_path);
+    let log_path = prefix_dir.join("last_run.log");
+
+    if log_path.exists() {
+        let _ = std::fs::remove_file(&log_path);
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
