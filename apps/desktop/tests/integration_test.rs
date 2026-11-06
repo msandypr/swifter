@@ -35,6 +35,7 @@ fn test_end_to_end_game_packaging_pipeline() {
         enable_msync: true,
         enable_esync: true,
         enable_retina: true,
+        dpi: Some(144),
         launch_args: Some("-screen-width 1920".to_string()),
         custom_env: None,
         copy_files_instead_of_symlink: true,

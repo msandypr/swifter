@@ -13,7 +13,8 @@
     Play,
     AlertTriangle,
     Lock,
-    ChevronDown
+    ChevronDown,
+    Monitor
   } from 'lucide-svelte';
   let {
     inspection,
@@ -34,6 +35,8 @@
       copyFiles: boolean;
       launchArgs?: string;
       customEnv?: Record<string, string>;
+      enableRetina?: boolean;
+      dpi?: number;
     }) => void;
     onTestRun: (exePath: string, backend: string, launchArgs?: string, customEnv?: Record<string, string>) => void;
     onBack: () => void;
@@ -45,6 +48,8 @@
   let selectedBackend = $state('DXVK');
   let enableMsync = $state(true);
   let copyFiles = $state(false);
+  let enableRetina = $state(true);
+  let dpi = $state(144);
 
   // Launch arguments & custom environment variables
   let launchArgs = $state('');
@@ -122,6 +127,8 @@
       copyFiles,
       launchArgs: launchArgs.trim() || undefined,
       customEnv: Object.keys(envObj).length > 0 ? envObj : undefined,
+      enableRetina,
+      dpi,
     });
   }
 </script>
@@ -362,6 +369,77 @@
         </div>
         <input type="checkbox" bind:checked={copyFiles} class="w-4 h-4 rounded accent-zinc-400" />
       </label>
+    </div>
+  </div>
+
+  <!-- Display & High-DPI Scaling -->
+  <div class="glass-card rounded-2xl p-6 space-y-4 border border-zinc-800 bg-zinc-900/40">
+    <div>
+      <h3 class="text-sm font-semibold text-zinc-100 flex items-center gap-2">
+        <Monitor class="w-4 h-4 text-zinc-400" />
+        Display & High-DPI Scaling
+      </h3>
+      <p class="text-xs text-zinc-400 mt-0.5">
+        Configure Retina buffer rendering and Windows DPI scaling presets
+      </p>
+    </div>
+
+    <!-- Retina Mode Switch -->
+    <label class="flex items-center justify-between p-3 rounded-xl bg-zinc-800/40 hover:bg-zinc-800/60 transition-colors cursor-pointer border border-zinc-800">
+      <div class="space-y-0.5 pr-4">
+        <div class="text-sm font-medium text-zinc-200">High-DPI Retina Mode</div>
+        <div class="text-xs text-zinc-400">
+          Enables crisp native 2x Retina rendering instead of macOS blurry non-integer upscaling.
+        </div>
+      </div>
+      <input type="checkbox" bind:checked={enableRetina} class="w-4 h-4 rounded accent-zinc-400 shrink-0" />
+    </label>
+
+    <!-- DPI Presets -->
+    <div class="space-y-2">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Windows UI Scale (DPI)</span>
+        <span class="text-xs font-mono text-zinc-400">
+          {dpi === 96 ? '100% (Standard 96 DPI)' : dpi === 120 ? '125% (Medium 120 DPI)' : dpi === 144 ? '150% (Recommended 144 DPI)' : dpi === 192 ? '200% (Large 192 DPI)' : `${dpi} DPI`}
+        </span>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <button
+          type="button"
+          onclick={() => (dpi = 96)}
+          class="py-2.5 px-3 rounded-xl border text-center transition-all cursor-pointer {dpi === 96 ? 'border-zinc-300 bg-zinc-800 text-zinc-100 shadow-sm' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/30 text-zinc-400'}"
+        >
+          <div class="font-semibold text-xs">100%</div>
+          <div class="text-[10px] text-zinc-500 font-mono">96 DPI (Default)</div>
+        </button>
+
+        <button
+          type="button"
+          onclick={() => (dpi = 120)}
+          class="py-2.5 px-3 rounded-xl border text-center transition-all cursor-pointer {dpi === 120 ? 'border-zinc-300 bg-zinc-800 text-zinc-100 shadow-sm' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/30 text-zinc-400'}"
+        >
+          <div class="font-semibold text-xs">125%</div>
+          <div class="text-[10px] text-zinc-500 font-mono">120 DPI</div>
+        </button>
+
+        <button
+          type="button"
+          onclick={() => (dpi = 144)}
+          class="py-2.5 px-3 rounded-xl border text-center transition-all cursor-pointer {dpi === 144 ? 'border-zinc-300 bg-zinc-800 text-zinc-100 shadow-sm' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/30 text-zinc-400'}"
+        >
+          <div class="font-semibold text-xs">150%</div>
+          <div class="text-[10px] text-zinc-500 font-mono">144 DPI (Retina)</div>
+        </button>
+
+        <button
+          type="button"
+          onclick={() => (dpi = 192)}
+          class="py-2.5 px-3 rounded-xl border text-center transition-all cursor-pointer {dpi === 192 ? 'border-zinc-300 bg-zinc-800 text-zinc-100 shadow-sm' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/30 text-zinc-400'}"
+        >
+          <div class="font-semibold text-xs">200%</div>
+          <div class="text-[10px] text-zinc-500 font-mono">192 DPI (Large)</div>
+        </button>
+      </div>
     </div>
   </div>
 

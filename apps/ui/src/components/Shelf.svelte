@@ -37,7 +37,8 @@
     SquarePower,
     Copy,
     Check,
-    ExternalLink
+    ExternalLink,
+    Monitor
   } from 'lucide-svelte';
 
   let { onNavigatePacker }: { onNavigatePacker: () => void } = $props();
@@ -55,6 +56,8 @@
   let chosenBackend = $state('');
   let chosenLaunchArgs = $state('');
   let chosenEnvVars = $state('');
+  let chosenRetina = $state(true);
+  let chosenDpi = $state(144);
   let updateStatusMsg = $state('');
 
   // Quick Tools & Log states
@@ -113,6 +116,8 @@
     chosenBackend = app.backend || 'DXVK';
     chosenLaunchArgs = app.launch_args || '';
     chosenEnvVars = envToLines(app.custom_env);
+    chosenRetina = app.enable_retina !== undefined ? app.enable_retina : true;
+    chosenDpi = app.dpi !== undefined ? app.dpi : 144;
     try {
       const exes = await scanAvailableExesInApp(app.bundle_path);
       availableExes = exes;
@@ -147,6 +152,19 @@
       await updateAppConfig(selectedApp.bundle_path, null, chosenBackend);
       updateStatusMsg = 'Graphics engine updated successfully!';
       selectedApp.backend = chosenBackend;
+      await loadApps();
+    } catch (err: unknown) {
+      updateStatusMsg = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  async function handleSaveDisplaySettings() {
+    if (!selectedApp) return;
+    try {
+      await updateAppConfig(selectedApp.bundle_path, null, null, null, null, chosenRetina, chosenDpi);
+      updateStatusMsg = 'Display & DPI settings updated successfully!';
+      selectedApp.enable_retina = chosenRetina;
+      selectedApp.dpi = chosenDpi;
       await loadApps();
     } catch (err: unknown) {
       updateStatusMsg = err instanceof Error ? err.message : String(err);
@@ -574,7 +592,94 @@
             {/if}
           </div>
 
-          <!-- 4. Quick Tools & Troubleshooting -->
+          <!-- 4. Display & High-DPI Scaling -->
+          <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-zinc-300 font-medium flex items-center gap-1.5">
+                <Monitor class="w-3.5 h-3.5 text-zinc-400" />
+                Display & High-DPI Scaling
+              </span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700">
+                {selectedApp.enable_retina ? 'Retina On' : 'Retina Off'} · {selectedApp.dpi || 144} DPI
+              </span>
+            </div>
+
+            <!-- Retina Mode Toggle -->
+            <label class="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/60 hover:bg-zinc-900 border border-zinc-800/80 transition-colors cursor-pointer">
+              <div class="space-y-0.5 pr-3">
+                <div class="text-xs font-semibold text-zinc-200">High-DPI Retina Mode</div>
+                <div class="text-[11px] text-zinc-400">
+                  Enables crisp native pixel density rendering via macOS window backing store.
+                </div>
+              </div>
+              <input type="checkbox" bind:checked={chosenRetina} class="w-4 h-4 rounded accent-zinc-400 shrink-0" />
+            </label>
+
+            <!-- DPI Scaling Presets -->
+            <div class="space-y-1.5 pt-1">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-medium text-zinc-400">Windows UI & Font Scaling (DPI)</span>
+                <span class="text-[10px] font-mono text-zinc-500">
+                  {chosenDpi === 96 ? '100% (Standard)' : chosenDpi === 120 ? '125% (Medium)' : chosenDpi === 144 ? '150% (Recommended)' : chosenDpi === 192 ? '200% (Large)' : `${chosenDpi} DPI`}
+                </span>
+              </div>
+              <div class="grid grid-cols-4 gap-2 text-xs">
+                <button
+                  type="button"
+                  onclick={() => (chosenDpi = 96)}
+                  class="py-2 px-1 rounded-xl border text-center font-medium transition-all cursor-pointer {chosenDpi === 96 ? 'border-zinc-300 bg-zinc-800 text-zinc-100 shadow-sm' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/60 text-zinc-400'}"
+                >
+                  <div class="font-semibold text-xs">100%</div>
+                  <div class="text-[10px] text-zinc-500 font-mono">96 DPI</div>
+                </button>
+
+                <button
+                  type="button"
+                  onclick={() => (chosenDpi = 120)}
+                  class="py-2 px-1 rounded-xl border text-center font-medium transition-all cursor-pointer {chosenDpi === 120 ? 'border-zinc-300 bg-zinc-800 text-zinc-100 shadow-sm' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/60 text-zinc-400'}"
+                >
+                  <div class="font-semibold text-xs">125%</div>
+                  <div class="text-[10px] text-zinc-500 font-mono">120 DPI</div>
+                </button>
+
+                <button
+                  type="button"
+                  onclick={() => (chosenDpi = 144)}
+                  class="py-2 px-1 rounded-xl border text-center font-medium transition-all cursor-pointer {chosenDpi === 144 ? 'border-zinc-300 bg-zinc-800 text-zinc-100 shadow-sm' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/60 text-zinc-400'}"
+                >
+                  <div class="font-semibold text-xs">150%</div>
+                  <div class="text-[10px] text-zinc-500 font-mono">144 DPI</div>
+                </button>
+
+                <button
+                  type="button"
+                  onclick={() => (chosenDpi = 192)}
+                  class="py-2 px-1 rounded-xl border text-center font-medium transition-all cursor-pointer {chosenDpi === 192 ? 'border-zinc-300 bg-zinc-800 text-zinc-100 shadow-sm' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/60 text-zinc-400'}"
+                >
+                  <div class="font-semibold text-xs">200%</div>
+                  <div class="text-[10px] text-zinc-500 font-mono">192 DPI</div>
+                </button>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-1">
+              <p class="text-[11px] text-zinc-500">
+                Fixes blurry or microscopic in-game UI & text on Apple Retina displays.
+              </p>
+              <button
+                onclick={handleSaveDisplaySettings}
+                disabled={chosenRetina === selectedApp.enable_retina && chosenDpi === (selectedApp.dpi ?? 144)}
+                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs active:scale-95 disabled:opacity-40 transition-all shadow-sm cursor-pointer whitespace-nowrap shrink-0 ml-2"
+              >
+                Apply Display
+              </button>
+            </div>
+            {#if updateStatusMsg && updateStatusMsg.toLowerCase().includes('dpi')}
+              <div class="text-[11px] font-mono text-emerald-400 pt-0.5">{updateStatusMsg}</div>
+            {/if}
+          </div>
+
+          <!-- 5. Quick Tools & Troubleshooting -->
           <div class="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-2.5">
             <div class="flex items-center justify-between">
               <span class="text-zinc-300 font-medium flex items-center gap-1.5">

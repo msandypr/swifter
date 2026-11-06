@@ -15,6 +15,8 @@ pub struct InstalledAppInfo {
     pub target_exe: String,
     pub launch_args: String,
     pub custom_env: std::collections::HashMap<String, String>,
+    pub enable_retina: bool,
+    pub dpi: u32,
     pub icon_path: Option<String>,
     pub icon_data_url: Option<String>,
 }
@@ -61,6 +63,8 @@ pub async fn pack_to_app(
     copy_files_instead_of_symlink: bool,
     launch_args: Option<String>,
     custom_env: Option<std::collections::HashMap<String, String>>,
+    enable_retina: Option<bool>,
+    dpi: Option<u32>,
 ) -> Result<String, String> {
     let folder = PathBuf::from(&game_folder_path);
 
@@ -81,7 +85,8 @@ pub async fn pack_to_app(
         backend_choice,
         enable_msync,
         enable_esync: true,
-        enable_retina: true,
+        enable_retina: enable_retina.unwrap_or(true),
+        dpi,
         launch_args,
         custom_env,
         copy_files_instead_of_symlink,
@@ -436,6 +441,8 @@ pub async fn list_installed_apps() -> Result<Vec<InstalledAppInfo>, String> {
                                 let custom_env = cfg.get("custom_env")
                                     .and_then(|v| serde_json::from_value::<std::collections::HashMap<String, String>>(v.clone()).ok())
                                     .unwrap_or_default();
+                                let enable_retina = cfg.get("enable_retina").and_then(|v| v.as_bool()).unwrap_or(true);
+                                let dpi = cfg.get("dpi").and_then(|v| v.as_u64()).map(|v| v as u32).unwrap_or(144);
                                 let icon = path.join("Contents/Resources/AppIcon.icns");
                                 let icon_path = if icon.exists() {
                                     Some(icon.to_string_lossy().to_string())
@@ -452,6 +459,8 @@ pub async fn list_installed_apps() -> Result<Vec<InstalledAppInfo>, String> {
                                     target_exe,
                                     launch_args,
                                     custom_env,
+                                    enable_retina,
+                                    dpi,
                                     icon_path,
                                     icon_data_url,
                                 });
@@ -1299,7 +1308,7 @@ pub async fn scan_available_exes_in_app(bundle_path: String) -> Result<Vec<Strin
     Ok(ranked)
 }
 
-/// 13. Updates target executable, graphics engine backend, launch arguments, or environment variables
+/// 13. Updates target executable, graphics engine backend, launch arguments, environment variables, or display scaling
 #[tauri::command]
 pub async fn update_app_config(
     bundle_path: String,
@@ -1307,6 +1316,8 @@ pub async fn update_app_config(
     new_backend: Option<String>,
     new_launch_args: Option<String>,
     new_custom_env: Option<std::collections::HashMap<String, String>>,
+    new_enable_retina: Option<bool>,
+    new_dpi: Option<u32>,
 ) -> Result<(), String> {
     let bundle = PathBuf::from(&bundle_path);
     let config_path = bundle.join("Contents/Resources/swifter.config.json");
@@ -1331,6 +1342,12 @@ pub async fn update_app_config(
     if let Some(env) = new_custom_env {
         cfg["custom_env"] = serde_json::to_value(env).unwrap_or_default();
     }
+    if let Some(retina) = new_enable_retina {
+        cfg["enable_retina"] = serde_json::Value::Bool(retina);
+    }
+    if let Some(dpi) = new_dpi {
+        cfg["dpi"] = serde_json::Value::Number(serde_json::Number::from(dpi));
+    }
 
     std::fs::write(&config_path, serde_json::to_string_pretty(&cfg).unwrap())
         .map_err(|e| format!("Failed to write updated config: {}", e))?;
@@ -1341,6 +1358,10 @@ pub async fn update_app_config(
         let _ = std::fs::write(&launcher_path, launcher_script);
         use std::os::unix::fs::PermissionsExt;
         let _ = std::fs::set_permissions(&launcher_path, std::fs::Permissions::from_mode(0o755));
+
+        // Synchronize prefix registry
+        let (_, prefix_dir) = get_prefix_dir_for_bundle(&bundle_path);
+        let _ = prefix_mgr::apply_dpi_and_retina_settings(&prefix_dir, app_cfg.dpi, app_cfg.enable_retina);
     }
 
     Ok(())
@@ -1348,7 +1369,7 @@ pub async fn update_app_config(
 
 #[tauri::command]
 pub async fn update_app_target_exe(bundle_path: String, new_target_exe: String) -> Result<(), String> {
-    update_app_config(bundle_path, Some(new_target_exe), None, None, None).await
+    update_app_config(bundle_path, Some(new_target_exe), None, None, None, None, None).await
 }
 
 /// 14. Uninstalls a packaged application bundle and removes its isolated micro-prefix

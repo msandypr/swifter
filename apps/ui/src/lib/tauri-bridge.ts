@@ -24,6 +24,8 @@ export interface PackOptions {
   copy_files_instead_of_symlink: boolean;
   launch_args?: string;
   custom_env?: Record<string, string>;
+  enable_retina?: boolean;
+  dpi?: number;
 }
 
 export interface InstalledAppInfo {
@@ -34,6 +36,8 @@ export interface InstalledAppInfo {
   target_exe: string;
   launch_args?: string;
   custom_env?: Record<string, string>;
+  enable_retina?: boolean;
+  dpi?: number;
   icon_path?: string | null;
   icon_data_url?: string | null;
 }
@@ -73,6 +77,8 @@ export async function packToApp(options: PackOptions): Promise<string> {
     copyFilesInsteadOfSymlink: options.copy_files_instead_of_symlink,
     launchArgs: options.launch_args || null,
     customEnv: options.custom_env || null,
+    enableRetina: options.enable_retina !== undefined ? options.enable_retina : null,
+    dpi: options.dpi !== undefined ? options.dpi : null,
   });
 }
 
@@ -151,7 +157,9 @@ export async function updateAppConfig(
   newTargetExe?: string | null,
   newBackend?: string | null,
   newLaunchArgs?: string | null,
-  newCustomEnv?: Record<string, string> | null
+  newCustomEnv?: Record<string, string> | null,
+  newEnableRetina?: boolean | null,
+  newDpi?: number | null
 ): Promise<void> {
   await invoke('update_app_config', {
     bundlePath,
@@ -159,6 +167,8 @@ export async function updateAppConfig(
     newBackend: newBackend || null,
     newLaunchArgs: newLaunchArgs !== undefined ? newLaunchArgs : null,
     newCustomEnv: newCustomEnv || null,
+    newEnableRetina: newEnableRetina !== undefined ? newEnableRetina : null,
+    newDpi: newDpi !== undefined ? newDpi : null,
   });
 }
 

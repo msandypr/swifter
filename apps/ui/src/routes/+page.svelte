@@ -256,6 +256,8 @@
     copyFiles: boolean;
     launchArgs?: string;
     customEnv?: Record<string, string>;
+    enableRetina?: boolean;
+    dpi?: number;
   }) {
     if (!inspection) return;
 
@@ -287,6 +289,8 @@
         copy_files_instead_of_symlink: options.copyFiles,
         launch_args: options.launchArgs,
         custom_env: options.customEnv,
+        enable_retina: options.enableRetina,
+        dpi: options.dpi,
       });
 
       createdBundlePath = bundle;

@@ -15,6 +15,7 @@ pub struct BuildAppOptions {
     pub enable_msync: bool,
     pub enable_esync: bool,
     pub enable_retina: bool,
+    pub dpi: Option<u32>,
     pub launch_args: Option<String>,
     pub custom_env: Option<std::collections::HashMap<String, String>>,
     pub copy_files_instead_of_symlink: bool,
@@ -82,6 +83,7 @@ pub fn build_application_bundle(options: BuildAppOptions) -> Result<PathBuf, Str
         enable_msync: options.enable_msync,
         enable_esync: options.enable_esync,
         enable_retina: options.enable_retina,
+        dpi: options.dpi.unwrap_or(144),
         launch_args: options.launch_args.unwrap_or_default(),
         custom_env: options.custom_env.unwrap_or_default(),
         wine_custom_path: None,
@@ -182,8 +184,9 @@ pub fn build_application_bundle(options: BuildAppOptions) -> Result<PathBuf, Str
             .map_err(|e| format!("Failed to symlink game payload: {}", e))?;
     }
 
-    // 7. Ensure isolated micro-prefix is provisioned
-    prefix_mgr::ensure_micro_prefix(&app_slug)?;
+    // 7. Ensure isolated micro-prefix is provisioned and apply DPI settings
+    let prefix_dir = prefix_mgr::ensure_micro_prefix(&app_slug)?;
+    let _ = prefix_mgr::apply_dpi_and_retina_settings(&prefix_dir, config.dpi, config.enable_retina);
 
     // 8. Strip macOS Gatekeeper quarantine attribute so .app opens without developer block
     let _ = std::process::Command::new("/usr/bin/xattr")
@@ -303,6 +306,7 @@ mod tests {
             enable_msync: true,
             enable_esync: true,
             enable_retina: false,
+            dpi: Some(96),
             launch_args: Some("-windowed".to_string()),
             custom_env: None,
             copy_files_instead_of_symlink: false,

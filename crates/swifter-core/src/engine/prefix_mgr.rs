@@ -182,3 +182,144 @@ fn safe_symlink(target: &Path, link_path: &Path) {
     }
     let _ = symlink(target, link_path);
 }
+
+/// Updates or inserts a registry key in a Wine .reg file string
+pub fn update_or_insert_reg_key(content: &str, section_pattern: &str, key_name: &str, val_str: &str) -> String {
+    let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
+    let mut in_section = false;
+    let mut section_found = false;
+    let mut key_updated = false;
+
+    let clean_pat = section_pattern.replace("\\\\", "\\");
+
+    for i in 0..lines.len() {
+        let trimmed = lines[i].trim();
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            let sec_name = &trimmed[1..trimmed.len() - 1];
+            let clean_sec = sec_name.replace("\\\\", "\\");
+
+            if clean_sec.eq_ignore_ascii_case(&clean_pat) {
+                in_section = true;
+                section_found = true;
+                continue;
+            } else if in_section {
+                lines.insert(i, format!("\"{}\"={}", key_name, val_str));
+                key_updated = true;
+                break;
+            }
+        }
+
+        if in_section {
+            let key_prefix = format!("\"{}\"=", key_name);
+            if trimmed.starts_with(&key_prefix) {
+                lines[i] = format!("\"{}\"={}", key_name, val_str);
+                key_updated = true;
+                break;
+            }
+        }
+    }
+
+    if section_found && !key_updated {
+        lines.push(format!("\"{}\"={}", key_name, val_str));
+    } else if !section_found {
+        lines.push(String::new());
+        lines.push(format!("[{}]", section_pattern));
+        lines.push(format!("\"{}\"={}", key_name, val_str));
+    }
+
+    lines.join("\n") + "\n"
+}
+
+/// Applies the specified DPI (e.g. 96, 120, 144, 192) and Retina mode to user.reg and userdef.reg
+pub fn apply_dpi_and_retina_settings(prefix_dir: &Path, dpi: u32, enable_retina: bool) -> Result<(), String> {
+    let user_reg = prefix_dir.join("user.reg");
+    let dpi_val = if dpi == 0 { 96 } else { dpi };
+    let hex_dpi = format!("{:08x}", dpi_val);
+    let retina_str = if enable_retina { "\"Y\"" } else { "\"N\"" };
+
+    let mut content = if user_reg.exists() {
+        fs::read_to_string(&user_reg).unwrap_or_default()
+    } else {
+        "WINE REGISTRY Version 2\n;; All keys relative to \\\\User\n\n#arch=win64\n\n".to_string()
+    };
+
+    content = update_or_insert_reg_key(
+        &content,
+        "Control Panel\\Desktop",
+        "LogPixels",
+        &format!("dword:{}", hex_dpi),
+    );
+
+    content = update_or_insert_reg_key(
+        &content,
+        "Software\\Wine\\Mac Driver",
+        "RetinaMode",
+        retina_str,
+    );
+
+    fs::write(&user_reg, content).map_err(|e| format!("Failed to write user.reg: {}", e))?;
+
+    let userdef_reg = prefix_dir.join("userdef.reg");
+    if userdef_reg.exists() {
+        if let Ok(c) = fs::read_to_string(&userdef_reg) {
+            let u1 = update_or_insert_reg_key(
+                &c,
+                "Control Panel\\Desktop",
+                "LogPixels",
+                &format!("dword:{}", hex_dpi),
+            );
+            let u2 = update_or_insert_reg_key(
+                &u1,
+                "Software\\Wine\\Mac Driver",
+                "RetinaMode",
+                retina_str,
+            );
+            let _ = fs::write(&userdef_reg, u2);
+        }
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_update_or_insert_reg_key_new_section() {
+        let initial = "WINE REGISTRY Version 2\n#arch=win64\n";
+        let res = update_or_insert_reg_key(initial, "Control Panel\\Desktop", "LogPixels", "dword:00000090");
+        assert!(res.contains("[Control Panel\\Desktop]"));
+        assert!(res.contains("\"LogPixels\"=dword:00000090"));
+    }
+
+    #[test]
+    fn test_update_or_insert_reg_key_existing_key() {
+        let initial = "WINE REGISTRY Version 2\n\n[Control Panel\\Desktop]\n\"LogPixels\"=dword:00000060\n\"Wallpaper\"=\"\"\n";
+        let res = update_or_insert_reg_key(initial, "Control Panel\\Desktop", "LogPixels", "dword:000000c0");
+        assert!(res.contains("\"LogPixels\"=dword:000000c0"));
+        assert!(!res.contains("dword:00000060"));
+        assert!(res.contains("\"Wallpaper\"=\"\""));
+    }
+
+    #[test]
+    fn test_apply_dpi_and_retina_settings() {
+        let temp_dir = std::env::temp_dir().join("swifter_test_dpi_prefix");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        apply_dpi_and_retina_settings(&temp_dir, 144, true).unwrap();
+
+        let user_reg_content = fs::read_to_string(temp_dir.join("user.reg")).unwrap();
+        assert!(user_reg_content.contains("\"LogPixels\"=dword:00000090"));
+        assert!(user_reg_content.contains("\"RetinaMode\"=\"Y\""));
+
+        // Change to 96 and false
+        apply_dpi_and_retina_settings(&temp_dir, 96, false).unwrap();
+        let updated = fs::read_to_string(temp_dir.join("user.reg")).unwrap();
+        assert!(updated.contains("\"LogPixels\"=dword:00000060"));
+        assert!(updated.contains("\"RetinaMode\"=\"N\""));
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+}

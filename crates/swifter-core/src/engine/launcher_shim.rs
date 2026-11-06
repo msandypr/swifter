@@ -8,13 +8,24 @@ pub struct SwifterAppConfig {
     pub backend: String, // "DXVK" | "D3DMetal" | "Vanilla"
     pub enable_msync: bool,
     pub enable_esync: bool,
+    #[serde(default = "default_retina")]
     pub enable_retina: bool,
+    #[serde(default = "default_dpi")]
+    pub dpi: u32,
     #[serde(default)]
     pub launch_args: String,
     #[serde(default)]
     pub custom_env: std::collections::HashMap<String, String>,
     #[serde(default)]
     pub wine_custom_path: Option<String>,
+}
+
+fn default_retina() -> bool {
+    true
+}
+
+fn default_dpi() -> u32 {
+    144
 }
 
 /// Generates the POSIX shell script content for Contents/MacOS/launcher
@@ -31,6 +42,8 @@ pub fn generate_launcher_script(config: &SwifterAppConfig) -> String {
     script.push_str(&format!("ENABLE_MSYNC={}\n", if config.enable_msync { "1" } else { "0" }));
     script.push_str(&format!("ENABLE_ESYNC={}\n", if config.enable_esync { "1" } else { "0" }));
     script.push_str(&format!("ENABLE_RETINA={}\n", if config.enable_retina { "1" } else { "0" }));
+    let dpi_val = if config.dpi == 0 { 144 } else { config.dpi };
+    script.push_str(&format!("DPI={}\n", dpi_val));
     script.push_str(&format!("LAUNCH_ARGS=\"{}\"\n", config.launch_args.replace('"', "\\\"")));
 
     // Prefix path
@@ -127,6 +140,16 @@ export WINEDLLOVERRIDES="opengl32=n,b;${WINEDLLOVERRIDES}"
 
 if [ "$ENABLE_RETINA" = "1" ]; then
     export WINE_ENABLE_RETINA=1
+else
+    export WINE_ENABLE_RETINA=0
+fi
+
+# Synchronize Wine prefix LogPixels registry with configured DPI
+if [ -f "$WINEPREFIX/user.reg" ] && [ -n "$DPI" ]; then
+    HEX_DPI=$(printf "%08x" "$DPI")
+    if ! grep -q "LogPixels\"=dword:$HEX_DPI" "$WINEPREFIX/user.reg" 2>/dev/null; then
+        sed -i '' -e "s/\"LogPixels\"=dword:[0-9a-fA-F]*/\"LogPixels\"=dword:$HEX_DPI/g" "$WINEPREFIX/user.reg" 2>/dev/null || true
+    fi
 fi
 "#);
 
