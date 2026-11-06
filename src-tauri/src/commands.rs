@@ -137,6 +137,79 @@ pub fn resolve_wine_binary() -> Result<String, String> {
     Err("Wine runtime binary not found. Please install Wine or download it via the Requirements tab.".to_string())
 }
 
+/// Accurately checks if Apple D3DMetal (Game Porting Toolkit) translation layer is present.
+/// Requires Apple Silicon (aarch64) and the actual libd3dshared or D3DMetal library files.
+pub fn is_d3dmetal_available(active_wine_bin: Option<&str>) -> bool {
+    if !cfg!(target_arch = "aarch64") {
+        return false;
+    }
+
+    // 1. Check relative to active Wine binary directory
+    if let Some(bin_str) = active_wine_bin {
+        let bin_path = Path::new(bin_str);
+        if let Some(wine_dir) = bin_path.parent().and_then(|p| p.parent()) {
+            let candidates = [
+                wine_dir.join("lib/wine/x86_64-unix/libd3dshared.dylib"),
+                wine_dir.join("lib/x86_64-unix/libd3dshared.dylib"),
+                wine_dir.join("lib/libd3dshared.dylib"),
+                wine_dir.join("lib64/libd3dshared.dylib"),
+                wine_dir.join("lib64/wine/x86_64-unix/libd3dshared.dylib"),
+                wine_dir.join("lib/wine/x86_64-windows/d3d12.dll"),
+                wine_dir.join("SharedSupport/CrossOver/lib64/libd3dshared.dylib"),
+                wine_dir.join("SharedSupport/CrossOver/lib64/wine/x86_64-unix/libd3dshared.dylib"),
+            ];
+            if candidates.iter().any(|p| p.exists()) {
+                return true;
+            }
+        }
+    }
+
+    // 2. Check Swifter internal Wine directory
+    let swifter_wine = prefix_mgr::get_swifter_support_dir().join("runtimes/wine");
+    let swifter_candidates = [
+        swifter_wine.join("lib/wine/x86_64-unix/libd3dshared.dylib"),
+        swifter_wine.join("lib/libd3dshared.dylib"),
+        swifter_wine.join("lib64/libd3dshared.dylib"),
+        swifter_wine.join("lib/wine/x86_64-windows/d3d12.dll"),
+    ];
+    if swifter_candidates.iter().any(|p| p.exists()) {
+        return true;
+    }
+
+    // 3. Check Whisky's Wine runtime directory
+    if let Some(app_support) = dirs::data_dir() {
+        for whisky_sub in &[
+            "com.isaacmarovitz.Whisky/Libraries/Wine",
+            "Whisky/Libraries/Wine",
+        ] {
+            let p = app_support.join(whisky_sub);
+            if p.join("lib/wine/x86_64-unix/libd3dshared.dylib").exists()
+                || p.join("lib/libd3dshared.dylib").exists()
+                || p.join("lib64/libd3dshared.dylib").exists()
+            {
+                return true;
+            }
+        }
+    }
+
+    // 4. Check CrossOver standard application bundle
+    let crossover_candidates = [
+        Path::new("/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/lib64/libd3dshared.dylib"),
+        Path::new("/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/lib64/wine/x86_64-unix/libd3dshared.dylib"),
+    ];
+    if crossover_candidates.iter().any(|p| p.exists()) {
+        return true;
+    }
+
+    // 5. Check Swifter shared prefix system32
+    let shared_runtime = prefix_mgr::get_shared_runtime_dir();
+    if shared_runtime.join("drive_c/windows/system32/d3d12.dll").exists() {
+        return true;
+    }
+
+    false
+}
+
 /// 3. Performs a 3-second dry-run execution using Wine to capture early crash logs
 #[tauri::command]
 pub async fn dry_run_check(exe_path: String, backend: String) -> Result<Vec<String>, String> {
@@ -175,6 +248,7 @@ pub async fn dry_run_check(exe_path: String, backend: String) -> Result<Vec<Stri
         dll_overrides.push_str("d3d11=n,b;dxgi=n,b;");
     }
     cmd.env("WINEDLLOVERRIDES", dll_overrides);
+    let is_d3dmetal_missing = backend == "D3DMetal" && !is_d3dmetal_available(Some(&wine_bin));
     // Execute with a 3-second timeout via tokio
     let run_task = tokio::task::spawn_blocking(move || {
         let mut child = match cmd.spawn() {
@@ -191,6 +265,9 @@ pub async fn dry_run_check(exe_path: String, backend: String) -> Result<Vec<Stri
 
         let mut lines = Vec::new();
         lines.push("=== Dry-run completed (3 seconds test) ===".to_string());
+        if is_d3dmetal_missing {
+            lines.push("[WARNING] Apple D3DMetal (libd3dshared.dylib) not found in current Wine runtime. DirectX 11/12 may fail without Whisky or Apple GPTK.".to_string());
+        }
         if let Ok(out) = output {
             let stderr_str = String::from_utf8_lossy(&out.stderr);
             for line in stderr_str.lines().take(50) {
@@ -416,7 +493,7 @@ pub async fn check_runtime_status() -> Result<RuntimeStatus, String> {
             let has_dxvk = shared_runtime.join("drive_c/windows/system32/d3d11.dll").exists()
                 || shared_runtime.join("drive_c/windows/system32/dxgi.dll").exists();
             let has_winemetalgl = shared_runtime.join("drive_c/windows/system32/opengl32.dll").exists();
-            let has_d3dmetal = cfg!(target_arch = "aarch64");
+            let has_d3dmetal = is_d3dmetal_available(Some(&bin_path));
 
             Ok(RuntimeStatus {
                 is_installed: true,
@@ -1224,4 +1301,17 @@ pub async fn pick_file_or_folder() -> Result<Option<String>, String> {
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_d3dmetal_detection_does_not_panic() {
+        let result = is_d3dmetal_available(None);
+        if !cfg!(target_arch = "aarch64") {
+            assert!(!result, "D3DMetal must always be false on non-Apple-Silicon platforms");
+        }
+    }
 }

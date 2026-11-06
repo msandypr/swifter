@@ -47,7 +47,7 @@ Instead of cloning multi-gigabyte virtual Windows disks for every app, Swifter p
 | **Storage per App** | 1.5 GB – 2.5 GB (full virtual `C:` drive) | **Micro-prefix** using shared system symlinks |
 | **Directory Context** | Often requires full installer re-run | **Preserves full folder tree (`*_Data`, companion DLLs)** |
 | **Icon Handling** | Generic icons or manual user setup | **Automatic PE header extraction to `.icns`** |
-| **Dock Integration** | Ghost launcher icons or terminal windows | **Single native Dock item (`LSUIElement` handling)** |
+| **Dock Integration** | Ghost launcher icons or terminal windows | **Native Dock & App Switcher (`Cmd+Tab`) integration** |
 | **Workflow** | Multi-step bottle creation | **Drop file → Review options → Pack with Swifter** |
 
 ### How to Use

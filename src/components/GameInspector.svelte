@@ -17,6 +17,7 @@
   } from 'lucide-svelte';
   let {
     inspection,
+    hasD3DMetal = false,
     onPack,
     onTestRun,
     onBack,
@@ -24,6 +25,7 @@
     isDryRunning = false
   }: {
     inspection: SwifterInspection;
+    hasD3DMetal?: boolean;
     onPack: (options: {
       appName: string;
       targetExe?: string;
@@ -275,7 +277,12 @@
       <!-- D3DMetal Option -->
       <label class="cursor-pointer relative flex flex-col p-4 rounded-xl border transition-all {selectedBackend === 'D3DMetal' ? 'border-zinc-300 bg-zinc-800 text-zinc-100' : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/30 text-zinc-400'}">
         <input type="radio" name="backend" value="D3DMetal" bind:group={selectedBackend} class="sr-only" />
-        <span class="font-semibold text-sm text-zinc-200">Apple D3DMetal</span>
+        <div class="flex items-center justify-between pr-2">
+          <span class="font-semibold text-sm text-zinc-200">Apple D3DMetal</span>
+          {#if !hasD3DMetal}
+            <span class="px-1.5 py-0.5 text-[9px] rounded font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">Requires GPTK</span>
+          {/if}
+        </div>
         <span class="text-xs text-zinc-400 mt-1">Game Porting Toolkit 2. Optimized for DirectX 11 & 12.</span>
         {#if inspection.recommended_backend === 'D3DMetal'}
           <span class="absolute top-2.5 right-2.5 px-1.5 py-0.5 text-[9px] rounded font-bold uppercase bg-zinc-700 text-zinc-200 border border-zinc-600">Recommended</span>
@@ -292,6 +299,15 @@
         {/if}
       </label>
     </div>
+
+    {#if selectedBackend === 'D3DMetal' && !hasD3DMetal}
+      <div class="p-3 rounded-xl bg-amber-950/30 border border-amber-500/30 text-xs text-amber-300 flex items-start gap-2">
+        <AlertTriangle class="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+        <span>
+          <strong>Apple D3DMetal not detected</strong> in the current Wine runtime. Unless using Whisky or an Apple Game Porting Toolkit build, titles requiring D3D11/12 may fail to launch. <strong>DXVK</strong> is recommended for standard setups.
+        </span>
+      </div>
+    {/if}
   </div>
 
   <!-- Advanced Options & Storage Mode -->

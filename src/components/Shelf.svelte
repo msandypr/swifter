@@ -365,6 +365,12 @@
               </button>
             </div>
 
+            {#if chosenBackend === 'D3DMetal'}
+              <div class="text-[11px] text-amber-400/90 bg-amber-950/20 p-2 rounded-lg border border-amber-500/20">
+                Notice: D3DMetal requires Apple Silicon and Apple Game Porting Toolkit (GPTK) libraries (e.g. from Whisky).
+              </div>
+            {/if}
+
             <div class="flex items-center justify-between pt-1">
               <p class="text-[11px] text-zinc-500">
                 Switch translation layer without reinstalling the application.

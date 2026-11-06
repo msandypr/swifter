@@ -368,6 +368,7 @@
       {:else}
         <GameInspector
           {inspection}
+          hasD3DMetal={runtimeStatus?.has_d3dmetal ?? false}
           onPack={handlePack}
           onTestRun={handleTestRun}
           onBack={handleResetPacker}

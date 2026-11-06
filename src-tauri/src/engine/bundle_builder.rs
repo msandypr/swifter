@@ -237,8 +237,6 @@ fn generate_info_plist(app_slug: &str, app_name: &str) -> String {
     <string>12.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
-    <key>LSUIElement</key>
-    <true/>
 </dict>
 </plist>
 "#,
@@ -279,6 +277,8 @@ mod tests {
         assert!(plist.contains("<string>My Cool Game</string>"));
         assert!(plist.contains("<string>launcher</string>"));
         assert!(plist.contains("<string>AppIcon</string>"));
+        assert!(plist.contains("<key>NSHighResolutionCapable</key>"));
+        assert!(!plist.contains("<key>LSUIElement</key>"));
     }
 
     #[test]
