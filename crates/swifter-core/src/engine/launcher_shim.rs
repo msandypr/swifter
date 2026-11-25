@@ -120,6 +120,7 @@ export MESA_GLSL_VERSION_OVERRIDE=460
     // Backend environment variables
     script.push_str(r#"# Translation backend configuration
 export WINEDEBUG="fixme-all,err-all,+err"
+export WINE_LARGE_ADDRESS_AWARE=1
 
 if [ "$ENABLE_MSYNC" = "1" ]; then
     export WINEMSYNC=1
@@ -185,9 +186,9 @@ elif [ -f "$EXE_REL" ]; then
     TARGET_EXE="$EXE_REL"
 fi
 
-# If TARGET_EXE is still an installer or not found, auto-discover installed binary in Program Files or AppData
+# If TARGET_EXE is still an installer or not found, auto-discover installed binary in Program Files, Games, or AppData
 if [ -z "$TARGET_EXE" ] || echo "$EXE_REL" | grep -qiE "setup|install"; then
-    DISCOVERED="$(find "$WINEPREFIX/drive_c/Program Files" "$WINEPREFIX/drive_c/Program Files (x86)" "$WINEPREFIX/drive_c/users" "$HOME/Library/Application Support/Swifter/runtimes/wine-shared/drive_c/Program Files" "$HOME/Library/Application Support/Swifter/runtimes/wine-shared/drive_c/Program Files (x86)" -maxdepth 8 -iname "*.exe" 2>/dev/null | grep -viE "unins|setup|install|crash|vcredist|updater|dotnet" | head -n 1)"
+    DISCOVERED="$(find "$WINEPREFIX/drive_c/Program Files" "$WINEPREFIX/drive_c/Program Files (x86)" "$WINEPREFIX/drive_c/Games" "$WINEPREFIX/drive_c/users" "$HOME/Library/Application Support/Swifter/runtimes/wine-shared/drive_c/Program Files" "$HOME/Library/Application Support/Swifter/runtimes/wine-shared/drive_c/Program Files (x86)" -maxdepth 8 -iname "*.exe" 2>/dev/null | grep -viE "unins|setup|install|crash|vcredist|updater|dotnet" | head -n 1)"
     if [ -n "$DISCOVERED" ] && [ -f "$DISCOVERED" ]; then
         TARGET_EXE="$DISCOVERED"
     fi

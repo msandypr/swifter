@@ -29,15 +29,16 @@ const ANTICHEAT_SIGNATURES: &[(&str, &str)] = &[
 
 /// Inspects a PE binary file and extracts architecture and product metadata
 pub fn parse_pe_binary(exe_path: &Path) -> Result<PeMetadata, String> {
-    let bytes = std::fs::read(exe_path)
-        .map_err(|e| format!("Failed to read executable at {}: {}", exe_path.display(), e))?;
+    let file_map = pelite::FileMap::open(exe_path)
+        .map_err(|e| format!("Failed to map executable at {}: {}", exe_path.display(), e))?;
+    let bytes = file_map.as_ref();
 
     if bytes.len() < 64 {
         return Err("File too small to be a valid Windows executable".into());
     }
 
     // Wrap automatically parses both 32-bit and 64-bit PE binaries
-    let wrap = Wrap::<PeFile32, PeFile64>::from_bytes(&bytes)
+    let wrap = Wrap::<PeFile32, PeFile64>::from_bytes(bytes)
         .map_err(|e| format!("Invalid or corrupted PE executable: {:?}", e))?;
 
     match wrap {

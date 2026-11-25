@@ -1091,7 +1091,11 @@ fn score_candidate(path_str: &str, clean_slug: &str) -> i32 {
     let mut score = 0i32;
     let lower = path_str.to_lowercase();
 
-    if lower.contains("program files") || lower.contains("appdata/local") || lower.contains("appdata/roaming") {
+    if lower.contains("program files")
+        || lower.contains("drive_c/games")
+        || lower.contains("appdata/local")
+        || lower.contains("appdata/roaming")
+    {
         score += 100;
     }
     let filename = Path::new(path_str)
@@ -1123,25 +1127,130 @@ fn rank_installed_executables(mut exes: Vec<String>, app_slug: &str) -> Vec<Stri
     exes
 }
 
+fn resolve_wineserver_binary(wine_bin: &str) -> Option<PathBuf> {
+    if let Some(parent) = Path::new(wine_bin).parent() {
+        let candidate = parent.join("wineserver");
+        if candidate.exists() {
+            return Some(candidate);
+        }
+    }
+    if let Ok(output) = Command::new("which").arg("wineserver").output() {
+        if output.status.success() {
+            let p = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !p.is_empty() {
+                return Some(PathBuf::from(p));
+            }
+        }
+    }
+    None
+}
+
+fn wait_for_wineserver(wineserver_bin: Option<&Path>, prefix_dir: &Path) {
+    if let Some(ws) = wineserver_bin {
+        let _ = Command::new(ws)
+            .arg("-w")
+            .env("WINEPREFIX", prefix_dir)
+            .status();
+    }
+}
+
+fn collect_drive_c_exes(drive_c: &Path, shared_drive_c: &Path) -> Vec<String> {
+    let mut exes = Vec::new();
+    for d in [drive_c, shared_drive_c] {
+        if d.exists() {
+            for entry in walkdir::WalkDir::new(d).follow_links(true).max_depth(6).into_iter().filter_map(|e| e.ok()) {
+                if entry.file_type().is_file() {
+                    let p = entry.path();
+                    if p.extension().and_then(|s| s.to_str()).map(|ext| ext.eq_ignore_ascii_case("exe")).unwrap_or(false) {
+                        if let Ok(rel) = p.strip_prefix(d) {
+                            let candidate = format!("drive_c/{}", rel.to_string_lossy());
+                            if !is_system_or_installer_binary(&candidate) && !exes.contains(&candidate) {
+                                exes.push(candidate);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    exes
+}
+
+fn read_installer_log_tail(log_path: &Path) -> String {
+    let Ok(content) = std::fs::read_to_string(log_path) else {
+        return String::new();
+    };
+    let tail: Vec<&str> = content
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .rev()
+        .take(6)
+        .collect();
+    tail.into_iter().rev().collect::<Vec<_>>().join(" | ")
+}
+
 /// 11. Executes a setup/installer wizard inside the isolated micro-prefix and scans for newly installed game binaries
 #[tauri::command]
 pub async fn run_installer_in_prefix(exe_path: String, app_slug: String) -> Result<Vec<String>, String> {
     tokio::task::spawn_blocking(move || {
-        let prefix_dir = prefix_mgr::ensure_micro_prefix(&app_slug)?;
+        let clean_slug = app_slug.trim_matches('-');
+        let effective_slug = if clean_slug.is_empty() { "app" } else { clean_slug };
+        let prefix_dir = prefix_mgr::ensure_micro_prefix(effective_slug)?;
         let wine_bin = resolve_wine_binary()?;
+        let wineserver_bin = resolve_wineserver_binary(&wine_bin);
+
+        let drive_c = prefix_dir.join("drive_c");
+        let shared_drive_c = prefix_mgr::get_shared_runtime_dir().join("drive_c");
+        let existing_exes = collect_drive_c_exes(&drive_c, &shared_drive_c);
+
+        // Installer-safe DLL overrides: prefer builtin WineD3D/GDI & fallback OpenGL so 32-bit
+        // skinned repack wizards (Inno Setup, ISDone, VclStyles, botva2) do not crash in
+        // 32-bit MoltenVK/DXVK/WineMetalGL or Wine Gecko (mshtml).
+        let installer_overrides = "d3d11=b;d3d10core=b;d3d9=b;dxgi=b;opengl32=b,n;mshtml=d";
+
+        // Ensure the micro-prefix is fully initialized via wineboot before launching heavy
+        // repack installers that immediately extract DLLs/sub-installers into %TEMP%.
+        if !prefix_dir.join(".update-timestamp").exists() {
+            let _ = Command::new(&wine_bin)
+                .arg("wineboot")
+                .arg("-u")
+                .env("WINEPREFIX", &prefix_dir)
+                .env("WINEARCH", "win64")
+                .env("WINEDEBUG", "-all")
+                .env("WINEDLLOVERRIDES", format!("mscoree=d;{}", installer_overrides))
+                .env("MVK_CONFIG_LOG_LEVEL", "0")
+                .status();
+            wait_for_wineserver(wineserver_bin.as_deref(), &prefix_dir);
+        }
 
         let exe_path_buf = PathBuf::from(&exe_path);
         let parent_dir = exe_path_buf.parent().unwrap_or_else(|| Path::new("."));
+
+        let log_path = prefix_dir.join("installer.log");
+        let log_file = std::fs::File::create(&log_path).ok();
 
         let mut cmd = Command::new(&wine_bin);
         cmd.arg(&exe_path_buf)
             .current_dir(parent_dir)
             .env("WINEPREFIX", &prefix_dir)
             .env("WINEARCH", "win64")
-            .env("MESA_LOADER_DRIVER_OVERRIDE", "zink")
-            .env("GALLIUM_DRIVER", "zink")
-            .env("MESA_GL_VERSION_OVERRIDE", "4.6")
-            .env("MESA_GLSL_VERSION_OVERRIDE", "460");
+            .env("WINE_LARGE_ADDRESS_AWARE", "1")
+            .env("WINEESYNC", "1")
+            .env("WINEMSYNC", "1")
+            .env("WINEDLLOVERRIDES", installer_overrides)
+            .env("WINEDEBUG", "fixme-all,-warn,+err")
+            .env("MVK_CONFIG_LOG_LEVEL", "0")
+            .env("DXVK_LOG_LEVEL", "none");
+
+        if let Some(ref f) = log_file {
+            if let Ok(out) = f.try_clone() {
+                cmd.stdout(std::process::Stdio::from(out));
+            }
+            if let Ok(err) = f.try_clone() {
+                cmd.stderr(std::process::Stdio::from(err));
+            }
+        }
 
         let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn installer: {}", e))?;
         let pid = child.id();
@@ -1157,9 +1266,12 @@ pub async fn run_installer_in_prefix(exe_path: String, app_slug: String) -> Resu
         });
 
         let status = child.wait().map_err(|e| format!("Installer process failed: {}", e))?;
-        if !status.success() {
-            return Err(format!("Installer process exited with code: {:?}", status.code()));
-        }
+
+        // Repack installers (SetupLdr / Inno Setup / SFX wrappers) frequently spawn child
+        // processes (setup.tmp, unarc, xtool, lolz) and exit the initial parent process.
+        // Wait for the entire Wine prefix session to finish before scanning or reporting failure.
+        wait_for_wineserver(wineserver_bin.as_deref(), &prefix_dir);
+
         let mut installed_exes = Vec::new();
 
         // 1. Inspect Windows shortcut (.lnk) files in Desktop and Start Menu (created by installers)
@@ -1187,29 +1299,31 @@ pub async fn run_installer_in_prefix(exe_path: String, app_slug: String) -> Resu
         }
 
         // 2. Scan drive_c inside micro-prefix and shared runtime
-        let drive_c = prefix_dir.join("drive_c");
-        let shared_drive_c = prefix_mgr::get_shared_runtime_dir().join("drive_c");
-        let search_dirs = [drive_c, shared_drive_c];
-
-        for d in search_dirs {
-            if d.exists() {
-                for entry in walkdir::WalkDir::new(&d).follow_links(true).max_depth(6).into_iter().filter_map(|e| e.ok()) {
-                    if entry.file_type().is_file() {
-                        let p = entry.path();
-                        if p.extension().and_then(|s| s.to_str()).map(|ext| ext.eq_ignore_ascii_case("exe")).unwrap_or(false) {
-                            if let Ok(rel) = p.strip_prefix(&d) {
-                                let candidate = format!("drive_c/{}", rel.to_string_lossy());
-                                if !is_system_or_installer_binary(&candidate) && !installed_exes.contains(&candidate) {
-                                    installed_exes.push(candidate);
-                                }
-                            }
-                        }
-                    }
-                }
+        for candidate in collect_drive_c_exes(&drive_c, &shared_drive_c) {
+            if !installed_exes.contains(&candidate) {
+                installed_exes.push(candidate);
             }
         }
 
-        let ranked = rank_installed_executables(installed_exes, &app_slug);
+        let has_newly_installed = installed_exes.iter().any(|exe| !existing_exes.contains(exe));
+        if !status.success() && !has_newly_installed {
+            let log_tail = read_installer_log_tail(&log_path);
+            return if log_tail.is_empty() {
+                Err(format!(
+                    "Installer process exited with code: {:?}. Check {}",
+                    status.code(),
+                    log_path.display()
+                ))
+            } else {
+                Err(format!(
+                    "Installer process exited with code: {:?} ({})",
+                    status.code(),
+                    log_tail
+                ))
+            };
+        }
+
+        let ranked = rank_installed_executables(installed_exes, effective_slug);
         Ok(ranked)
     })
     .await

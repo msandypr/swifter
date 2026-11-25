@@ -115,7 +115,11 @@
     isRunningInstaller = true;
     installerMessage = 'Installer wizard running in Wine... Please complete the installation steps.';
     try {
-      const slug = (appName.trim() || inspection.app_display_name).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const slug =
+        (appName.trim() || inspection.app_display_name)
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '') || 'app';
       const discovered = await runInstallerInPrefix(inspection.target_exe_path, slug);
       installerDiscoveredExes = discovered;
       if (discovered.length > 0) {

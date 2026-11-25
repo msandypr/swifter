@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::{BufWriter, Read};
 use std::path::{Path, PathBuf};
 use image::{DynamicImage, ImageFormat, RgbaImage};
 use icns::{IconFamily, IconType, Image as IcnsImage, PixelFormat};
@@ -10,8 +10,11 @@ use sha2::{Digest, Sha256};
 
 /// Extracts the highest quality icon from the Windows executable and generates a macOS .icns file
 pub fn extract_and_generate_icns(exe_path: &Path) -> Result<PathBuf, String> {
-    let bytes = std::fs::read(exe_path)
-        .map_err(|e| format!("Failed to read binary for icon extraction: {}", e))?;
+    let mut header_buf = [0u8; 4096];
+    let mut file = File::open(exe_path)
+        .map_err(|e| format!("Failed to open binary for icon extraction: {}", e))?;
+    let file_len = file.metadata().map(|m| m.len()).unwrap_or(0);
+    let n = file.read(&mut header_buf).unwrap_or(0);
 
     // Create cache directory ~/.cache/swifter/icons/
     let cache_dir = dirs::cache_dir()
@@ -21,14 +24,11 @@ pub fn extract_and_generate_icns(exe_path: &Path) -> Result<PathBuf, String> {
     std::fs::create_dir_all(&cache_dir)
         .map_err(|e| format!("Failed to create icon cache directory: {}", e))?;
 
-    // Hash binary path for stable cache key
+    // Hash binary path, size, and header bytes for stable cache key without reading multi-GB executables
     let mut hasher = Sha256::new();
     hasher.update(exe_path.to_string_lossy().as_bytes());
-    if bytes.len() > 4096 {
-        hasher.update(&bytes[..4096]);
-    } else {
-        hasher.update(&bytes);
-    }
+    hasher.update(file_len.to_le_bytes());
+    hasher.update(&header_buf[..n]);
     let hash_hex = format!("{:x}", hasher.finalize());
     let icns_path = cache_dir.join(format!("{}.icns", hash_hex));
 
@@ -43,8 +43,10 @@ pub fn extract_and_generate_icns(exe_path: &Path) -> Result<PathBuf, String> {
         }
     }
 
-    // Attempt to extract the icon from PE resources
-    let loaded_image = extract_best_image_from_pe(&bytes);
+    // Attempt to extract the icon from PE resources via memory-mapped I/O
+    let loaded_image = pelite::FileMap::open(exe_path)
+        .map_err(|e| format!("Failed to map PE binary: {}", e))
+        .and_then(|map| extract_best_image_from_pe(map.as_ref()));
 
     let base_image = match loaded_image {
         Ok(img) => img,

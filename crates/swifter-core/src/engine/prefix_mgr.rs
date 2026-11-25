@@ -56,12 +56,20 @@ pub fn ensure_micro_prefix(app_slug: &str) -> Result<PathBuf, String> {
 
     fs::create_dir_all(&windows_dir)
         .map_err(|e| format!("Failed to create windows dir in prefix: {}", e))?;
-    fs::create_dir_all(&users_dir.join("AppData").join("Local"))
-        .map_err(|e| format!("Failed to create AppData/Local in prefix: {}", e))?;
+    fs::create_dir_all(windows_dir.join("temp"))
+        .map_err(|e| format!("Failed to create windows/temp dir in prefix: {}", e))?;
+    fs::create_dir_all(drive_c.join("ProgramData"))
+        .map_err(|e| format!("Failed to create ProgramData dir in prefix: {}", e))?;
+    fs::create_dir_all(drive_c.join("users/Public"))
+        .map_err(|e| format!("Failed to create users/Public dir in prefix: {}", e))?;
+    fs::create_dir_all(&users_dir.join("AppData").join("Local").join("Temp"))
+        .map_err(|e| format!("Failed to create AppData/Local/Temp in prefix: {}", e))?;
     fs::create_dir_all(&users_dir.join("AppData").join("LocalLow"))
         .map_err(|e| format!("Failed to create AppData/LocalLow in prefix: {}", e))?;
     fs::create_dir_all(&users_dir.join("AppData").join("Roaming"))
         .map_err(|e| format!("Failed to create AppData/Roaming in prefix: {}", e))?;
+    fs::create_dir_all(&users_dir.join("Desktop"))
+        .map_err(|e| format!("Failed to create Desktop in prefix: {}", e))?;
     fs::create_dir_all(&users_dir.join("Saved Games"))
         .map_err(|e| format!("Failed to create Saved Games in prefix: {}", e))?;
     fs::create_dir_all(&users_dir.join("Documents"))
@@ -87,11 +95,19 @@ pub fn ensure_micro_prefix(app_slug: &str) -> Result<PathBuf, String> {
 
     let user_reg = prefix_dir.join("user.reg");
     if !user_reg.exists() {
-        let minimal_user_reg = "WINE REGISTRY Version 2\n;; All keys relative to \\\\User\n\n#arch=win64\n\n[Software\\\\Wine\\\\Direct3D]\n\"MaxVersionGL\"=dword:00040006\n\n[Software\\\\Wine\\\\DllOverrides]\n\"opengl32\"=\"native\"\n\n";
+        let minimal_user_reg = "WINE REGISTRY Version 2\n;; All keys relative to \\\\User\n\n#arch=win64\n\n[Software\\\\Wine\\\\Direct3D]\n\"MaxVersionGL\"=dword:00040006\n\n[Software\\\\Wine\\\\DllOverrides]\n\"opengl32\"=\"native,builtin\"\n\n";
         let _ = fs::write(&user_reg, minimal_user_reg);
     } else if let Ok(c) = fs::read_to_string(&user_reg) {
-        if c.contains("#arch=win32") {
-            let _ = fs::write(&user_reg, c.replace("#arch=win32", "#arch=win64"));
+        let mut updated = c.clone();
+        if updated.contains("#arch=win32") {
+            updated = updated.replace("#arch=win32", "#arch=win64");
+        }
+        // Ensure opengl32 allows builtin fallback so 32-bit/WoW64 apps never hard-crash if native opengl32 fails
+        if updated.contains("\"opengl32\"=\"native\"") {
+            updated = updated.replace("\"opengl32\"=\"native\"", "\"opengl32\"=\"native,builtin\"");
+        }
+        if updated != c {
+            let _ = fs::write(&user_reg, updated);
         }
     }
 
