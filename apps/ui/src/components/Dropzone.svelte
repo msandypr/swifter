@@ -84,25 +84,25 @@
     ondragleave={handleDragLeave}
     ondrop={handleDrop}
     disabled={isAnalyzing}
-    class="w-full relative rounded-2xl transition-all duration-200 p-9 flex flex-col items-center justify-center cursor-pointer border glass-card text-left active:scale-[0.99]
+    class="w-full relative rounded-xl transition-colors duration-150 p-7 flex flex-col items-center justify-center cursor-pointer border text-left
       {isDragging
-        ? 'border-zinc-500 bg-white/10 scale-[1.01] shadow-2xl'
-        : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/40 hover:bg-zinc-900/60 shadow-xl'}"
+        ? 'border-zinc-500 bg-white/[0.06]'
+        : 'border-dashed border-white/[0.12] hover:border-white/[0.22] bg-white/[0.02] hover:bg-white/[0.035]'}"
   >
-    <div class="flex flex-col items-center text-center space-y-3.5">
-      <div class="w-12 h-12 rounded-2xl bg-zinc-800/90 border border-zinc-700/60 flex items-center justify-center text-zinc-300 shadow-sm">
+    <div class="flex flex-col items-center text-center space-y-3">
+      <div class="w-10 h-10 rounded-xl bg-zinc-800/90 border border-white/[0.08] flex items-center justify-center text-zinc-300">
         {#if isAnalyzing}
-          <div class="w-5 h-5 border-2 border-zinc-200 border-t-transparent rounded-full animate-spin"></div>
+          <div class="w-4 h-4 border-2 border-zinc-200 border-t-transparent rounded-full animate-spin"></div>
         {:else}
-          <Upload class="w-5 h-5 text-zinc-300" />
+          <Upload class="w-4 h-4 text-zinc-300" />
         {/if}
       </div>
 
       <div class="space-y-1">
-        <h2 class="text-sm font-semibold text-zinc-100">
+        <h2 class="text-[13px] font-semibold text-zinc-100">
           {isAnalyzing ? 'Inspecting executable context...' : 'Choose or drop Windows executable (.exe) or application folder'}
         </h2>
-        <p class="text-xs text-zinc-400 max-w-sm leading-relaxed">
+        <p class="text-xs text-zinc-400 max-w-md leading-relaxed">
           Click to browse Finder, or drag & drop files here to convert into a native Mac app.
         </p>
       </div>

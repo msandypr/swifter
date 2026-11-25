@@ -151,7 +151,7 @@
   }
 </script>
 
-<div class="w-full max-w-3xl mx-auto flex flex-col p-6 space-y-6 overflow-y-auto max-h-[calc(100vh-4rem)]">
+<div class="w-full flex flex-col space-y-4 pb-6">
   <!-- Top Navigation & Title Bar -->
   <div class="flex items-center justify-between">
     <button

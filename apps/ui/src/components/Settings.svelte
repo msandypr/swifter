@@ -6,7 +6,6 @@
     type RuntimeStatus
   } from '$lib/tauri-bridge';
   import {
-    Settings,
     CheckCircle2,
     XCircle,
     Download,
@@ -66,25 +65,19 @@
   }
 </script>
 
-<div class="w-full max-w-2xl mx-auto flex flex-col space-y-6 pb-8 text-zinc-300">
-  <!-- Header with Refresh Button -->
-  <div class="flex items-center justify-between border-b border-zinc-800 pb-4">
-    <div>
-      <h2 class="text-base font-semibold text-zinc-100 flex items-center gap-2">
-        <Settings class="w-4 h-4 text-zinc-400" />
-        Settings
-      </h2>
-      <p class="text-xs text-zinc-400 mt-0.5">
-        Manage Wine runtime and graphics engines.
-      </p>
-    </div>
+<div class="w-full flex flex-col space-y-4 pb-6 text-zinc-300">
+  <!-- Compact Action Row -->
+  <div class="flex items-center justify-between">
+    <p class="text-xs text-zinc-400">
+      Manage Wine runtime, graphics engines, and shared storage.
+    </p>
 
     <button
       onclick={handleRefreshClick}
       disabled={isRefreshing}
-      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-xs font-medium text-zinc-300 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-xs font-medium text-zinc-300 transition-colors disabled:opacity-50 cursor-pointer"
     >
-      <RefreshCw class="w-3.5 h-3.5 {isRefreshing ? 'animate-spin' : ''}" />
+      <RefreshCw class="w-3 h-3 {isRefreshing ? 'animate-spin' : ''}" />
       Refresh
     </button>
   </div>
@@ -95,269 +88,254 @@
     </div>
   {/if}
 
-  <div class="space-y-4">
-    <!-- Install Card (Shown on Top When Not Installed) -->
-    {#if !runtimeStatus?.is_installed}
-      <div class="glass-card rounded-2xl p-4 border border-zinc-800 bg-zinc-900/40 space-y-3">
-        <div class="space-y-1">
-          <h3 class="text-xs font-semibold text-zinc-100">Install Wine Runtime</h3>
-          <p class="text-xs text-zinc-400">
-            Wine is required to run Windows executables and software on macOS.
-          </p>
-        </div>
-        <div class="flex flex-wrap items-center gap-2 pt-1">
-          <button
-            onclick={onInstallRequest}
-            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs active:scale-95 transition-all shadow-sm cursor-pointer"
-          >
-            <Download class="w-3.5 h-3.5" />
-            Install Runtime (~182 MB)
-          </button>
-          <span class="text-xs text-zinc-500">or</span>
-          <code class="px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700/60 text-[11px] text-zinc-300 font-mono select-all">
-            brew install --cask wine-stable
-          </code>
-        </div>
-      </div>
-    {/if}
-
-    <!-- Unified Runtime & Graphics Engines Card -->
-    <div class="glass-card rounded-2xl p-4 border border-zinc-800 bg-zinc-900/40 space-y-3">
-      <!-- Wine Runtime Section -->
-      <div class="space-y-2">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <h3 class="text-xs font-semibold text-zinc-100">Wine Runtime</h3>
-            {#if runtimeStatus?.is_installed && runtimeStatus?.runtime_name}
-              <span class="text-zinc-500 text-[11px] font-mono">({runtimeStatus.runtime_name})</span>
-            {/if}
-          </div>
-          {#if runtimeStatus?.is_installed}
-            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <CheckCircle2 class="w-3 h-3" />
-              Installed
-            </span>
-          {:else}
-            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
-              <XCircle class="w-3 h-3" />
-              Not Installed
-            </span>
-          {/if}
-        </div>
-
+  <div class="space-y-5">
+    <!-- Section 1: Wine Runtime -->
+    <section class="space-y-2">
+      <div class="flex items-center justify-between px-1">
+        <h3 class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Wine Runtime</h3>
         {#if runtimeStatus?.is_installed}
-          <div class="flex items-center justify-between gap-3 text-xs pt-1 border-t border-zinc-800/60">
-            <div class="truncate text-[11px] text-zinc-400 font-mono" title={runtimeStatus.runtime_path || ''}>
-              {runtimeStatus.runtime_path || '-'}
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <CheckCircle2 class="w-3 h-3" />
+            Installed
+          </span>
+        {:else}
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+            <XCircle class="w-3 h-3" />
+            Not Installed
+          </span>
+        {/if}
+      </div>
+
+      <div class="rounded-xl border border-white/[0.07] bg-white/[0.025] p-4 space-y-3">
+        {#if runtimeStatus?.is_installed}
+          <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0 space-y-0.5">
+              <div class="text-xs font-medium text-zinc-100">
+                {runtimeStatus.runtime_name || 'Wine Runtime'}
+              </div>
+              <div class="truncate text-[11px] text-zinc-400 font-mono" title={runtimeStatus.runtime_path || ''}>
+                {runtimeStatus.runtime_path || '-'}
+              </div>
             </div>
             {#if runtimeStatus.runtime_path?.includes('/Swifter/runtimes/wine')}
               <button
                 onclick={onRemoveRequest}
-                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-rose-500/20 transition-all active:scale-95 cursor-pointer shrink-0"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-rose-500/20 transition-colors cursor-pointer shrink-0"
               >
                 <Trash2 class="w-3 h-3" />
                 Remove
               </button>
             {/if}
           </div>
+        {:else}
+          <div class="space-y-2.5">
+            <p class="text-xs text-zinc-400">
+              Wine is required to run Windows executables and software on macOS.
+            </p>
+            <div class="flex flex-wrap items-center gap-2">
+              <button
+                onclick={onInstallRequest}
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs transition-colors cursor-pointer"
+              >
+                <Download class="w-3.5 h-3.5" />
+                Install Runtime (~182 MB)
+              </button>
+              <span class="text-xs text-zinc-500">or</span>
+              <code class="px-2 py-1 rounded-md bg-zinc-900 border border-white/[0.08] text-[11px] text-zinc-300 font-mono select-all">
+                brew install --cask wine-stable
+              </code>
+            </div>
+          </div>
+        {/if}
+      </div>
+    </section>
+
+    <!-- Section 2: Graphics Engines -->
+    <section class="space-y-2">
+      <div class="flex items-center justify-between px-1">
+        <h3 class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Graphics Engines</h3>
+        {#if runtimeStatus?.is_installed && (!runtimeStatus?.has_dxvk || !runtimeStatus?.has_winemetalgl)}
+          <button
+            onclick={onInstallEnginesRequest || onInstallRequest}
+            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.09] text-zinc-200 text-[11px] font-medium border border-white/[0.08] transition-colors cursor-pointer"
+          >
+            <Download class="w-3 h-3 text-zinc-400" />
+            <span>Install Engines</span>
+          </button>
         {/if}
       </div>
 
-      <!-- Graphics Engines Section -->
-      <div class="border-t border-zinc-800/60 pt-3 space-y-2">
-        <div class="flex items-center justify-between">
-          <div class="text-xs font-semibold text-zinc-100">
-            Graphics Engines
+      <div class="rounded-xl border border-white/[0.07] bg-white/[0.025] divide-y divide-white/[0.06] text-xs">
+        <div class="flex items-center justify-between px-4 py-3">
+          <div class="flex items-center gap-2.5">
+            <Layers class="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+            <div>
+              <span class="text-zinc-200 font-medium">DXVK</span>
+              <span class="text-zinc-500 text-[11px] font-mono ml-1.5">DirectX 9–11 via Vulkan</span>
+            </div>
           </div>
-          {#if runtimeStatus?.is_installed && (!runtimeStatus?.has_dxvk || !runtimeStatus?.has_winemetalgl)}
+          {#if runtimeStatus?.has_dxvk}
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <CheckCircle2 class="w-3 h-3" />
+              Ready
+            </span>
+          {:else}
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+              Not Installed
+            </span>
+          {/if}
+        </div>
+
+        <div class="flex items-center justify-between px-4 py-3">
+          <div class="flex items-center gap-2.5">
+            <ShieldCheck class="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+            <div>
+              <span class="text-zinc-200 font-medium">Apple D3DMetal</span>
+              <span class="text-zinc-500 text-[11px] font-mono ml-1.5">DirectX 11/12 (GPTK)</span>
+            </div>
+          </div>
+          {#if runtimeStatus?.has_d3dmetal}
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <CheckCircle2 class="w-3 h-3" />
+              Ready
+            </span>
+          {:else}
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+              Not Installed
+            </span>
+          {/if}
+        </div>
+
+        <div class="flex items-center justify-between px-4 py-3">
+          <div class="flex items-center gap-2.5">
+            <Database class="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+            <div>
+              <span class="text-zinc-200 font-medium">WineMetalGL</span>
+              <span class="text-zinc-500 text-[11px] font-mono ml-1.5">OpenGL 1.0–4.6 via Metal</span>
+            </div>
+          </div>
+          {#if runtimeStatus?.has_winemetalgl}
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <CheckCircle2 class="w-3 h-3" />
+              Ready
+            </span>
+          {:else}
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+              Not Installed
+            </span>
+          {/if}
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Windows Dependencies -->
+    <section class="space-y-2">
+      <div class="px-1">
+        <h3 class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Windows Dependencies</h3>
+      </div>
+
+      <div class="rounded-xl border border-white/[0.07] bg-white/[0.025] divide-y divide-white/[0.06] text-xs">
+        <div class="flex items-center justify-between px-4 py-3 gap-3">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <ShieldCheck class="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+            <div class="min-w-0">
+              <span class="text-zinc-200 font-medium">MS Visual C++ 2015–2022</span>
+              <span class="text-zinc-500 text-[11px] font-mono ml-1.5">vcruntime140</span>
+            </div>
+          </div>
+          {#if runtimeStatus?.has_vcredist}
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+              <CheckCircle2 class="w-3 h-3" />
+              Installed
+            </span>
+          {:else}
             <button
-              onclick={onInstallEnginesRequest || onInstallRequest}
-              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-[11px] font-medium border border-zinc-700 transition-all cursor-pointer active:scale-95"
+              onclick={onInstallVcRedistRequest}
+              disabled={!runtimeStatus?.is_installed}
+              class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.09] disabled:opacity-40 text-zinc-200 text-[11px] font-medium border border-white/[0.08] transition-colors cursor-pointer shrink-0"
             >
               <Download class="w-3 h-3 text-zinc-400" />
-              <span>Install Engines</span>
+              <span>Install VC++ (~24 MB)</span>
             </button>
           {/if}
         </div>
-        <div class="divide-y divide-zinc-800/60 text-xs">
-          <!-- DXVK -->
-          <div class="flex items-center justify-between py-2 first:pt-0">
-            <div class="flex items-center gap-2">
-              <Layers class="w-3.5 h-3.5 text-zinc-400" />
-              <span class="text-zinc-200">DXVK <span class="text-zinc-500 text-[11px] font-mono">(DirectX 9–11)</span></span>
-            </div>
-            {#if runtimeStatus?.has_dxvk}
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <CheckCircle2 class="w-3 h-3" />
-                Ready
-              </span>
-            {:else}
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
-                Not Installed
-              </span>
-            {/if}
-          </div>
 
-          <!-- Apple D3DMetal -->
-          <div class="flex items-center justify-between py-2">
-            <div class="flex items-center gap-2">
-              <ShieldCheck class="w-3.5 h-3.5 text-zinc-400" />
-              <span class="text-zinc-200">Apple D3DMetal <span class="text-zinc-500 text-[11px] font-mono">(DirectX 11/12)</span></span>
+        <div class="flex items-center justify-between px-4 py-3 gap-3">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <Database class="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+            <div class="min-w-0">
+              <span class="text-zinc-200 font-medium">Windows Core Fonts</span>
+              <span class="text-zinc-500 text-[11px] font-mono ml-1.5">Arial, Tahoma, Verdana</span>
             </div>
-            {#if runtimeStatus?.has_d3dmetal}
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <CheckCircle2 class="w-3 h-3" />
-                Ready
-              </span>
-            {:else}
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
-                Not Installed
-              </span>
-            {/if}
           </div>
-
-          <!-- WineMetalGL -->
-          <div class="flex items-center justify-between py-2 last:pb-0">
-            <div class="flex items-center gap-2">
-              <Database class="w-3.5 h-3.5 text-zinc-400" />
-              <span class="text-zinc-200">WineMetalGL <span class="text-zinc-500 text-[11px] font-mono">(OpenGL)</span></span>
-            </div>
-            {#if runtimeStatus?.has_winemetalgl}
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <CheckCircle2 class="w-3 h-3" />
-                Ready
-              </span>
-            {:else}
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
-                Not Installed
-              </span>
-            {/if}
-          </div>
+          {#if runtimeStatus?.has_core_fonts}
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+              <CheckCircle2 class="w-3 h-3" />
+              Synced
+            </span>
+          {:else}
+            <button
+              onclick={onSyncFontsRequest}
+              class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.09] text-zinc-200 text-[11px] font-medium border border-white/[0.08] transition-colors cursor-pointer shrink-0"
+            >
+              <RefreshCw class="w-3 h-3 text-zinc-400" />
+              <span>Sync Fonts</span>
+            </button>
+          {/if}
         </div>
       </div>
+    </section>
 
-      <!-- Common Windows Dependencies Section -->
-      <div class="border-t border-zinc-800/60 pt-3 space-y-2">
-        <div class="flex items-center justify-between">
-          <div>
-            <div class="text-xs font-semibold text-zinc-100">
-              Common Windows Dependencies
-            </div>
-            <p class="text-[11px] text-zinc-500">
-              Shared runtimes and fonts required by many Windows applications
-            </p>
-          </div>
-        </div>
-        <div class="divide-y divide-zinc-800/60 text-xs">
-          <!-- Visual C++ Redistributable -->
-          <div class="flex items-center justify-between py-2 first:pt-0">
-            <div class="flex items-center gap-2">
-              <ShieldCheck class="w-3.5 h-3.5 text-zinc-400" />
-              <div>
-                <span class="text-zinc-200">MS Visual C++ 2015–2022</span>
-                <span class="text-zinc-500 text-[11px] font-mono ml-1.5">(vcruntime140)</span>
-              </div>
-            </div>
-            {#if runtimeStatus?.has_vcredist}
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <CheckCircle2 class="w-3 h-3" />
-                Installed
-              </span>
-            {:else}
-              <button
-                onclick={onInstallVcRedistRequest}
-                disabled={!runtimeStatus?.is_installed}
-                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-200 text-[11px] font-medium border border-zinc-700 transition-all cursor-pointer active:scale-95"
-              >
-                <Download class="w-3 h-3 text-zinc-400" />
-                <span>Install VC++ (~24 MB)</span>
-              </button>
-            {/if}
-          </div>
-
-          <!-- Windows Core Fonts -->
-          <div class="flex items-center justify-between py-2 last:pb-0">
-            <div class="flex items-center gap-2">
-              <Database class="w-3.5 h-3.5 text-zinc-400" />
-              <div>
-                <span class="text-zinc-200">Windows Core Fonts</span>
-                <span class="text-zinc-500 text-[11px] font-mono ml-1.5">(Arial, Tahoma, Times, Verdana)</span>
-              </div>
-            </div>
-            {#if runtimeStatus?.has_core_fonts}
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <CheckCircle2 class="w-3 h-3" />
-                Synced
-              </span>
-            {:else}
-              <button
-                onclick={onSyncFontsRequest}
-                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-[11px] font-medium border border-zinc-700 transition-all cursor-pointer active:scale-95"
-              >
-                <RefreshCw class="w-3 h-3 text-zinc-400" />
-                <span>Sync Fonts (Instant)</span>
-              </button>
-            {/if}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 3. Storage & File Access -->
-    <div class="glass-card rounded-2xl p-4 border border-zinc-800 bg-zinc-900/40 space-y-3">
-      <div class="text-xs font-semibold text-zinc-100">
-        Storage & File Access
+    <!-- Section 4: Storage & Maintenance -->
+    <section class="space-y-2">
+      <div class="px-1">
+        <h3 class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Storage & Maintenance</h3>
       </div>
 
-      <div class="divide-y divide-zinc-800/60 text-xs">
-        <div class="flex items-center justify-between py-2.5 first:pt-0 gap-3">
+      <div class="rounded-xl border border-white/[0.07] bg-white/[0.025] divide-y divide-white/[0.06] text-xs">
+        <div class="flex items-center justify-between px-4 py-3 gap-3">
           <div class="min-w-0 space-y-0.5">
-            <span class="text-zinc-200 font-medium block">Virtual Drive C:</span>
+            <span class="text-zinc-200 font-medium block">Shared Virtual Drive C:</span>
             <p class="text-[11px] text-zinc-500 truncate">Program Files, system32, and shared Windows runtime files</p>
           </div>
           <button
             onclick={openSharedDriveC}
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium border border-zinc-700 transition-colors cursor-pointer whitespace-nowrap shrink-0 active:scale-95"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.09] text-zinc-200 text-xs font-medium border border-white/[0.08] transition-colors cursor-pointer whitespace-nowrap shrink-0"
           >
             <HardDrive class="w-3.5 h-3.5 text-zinc-400" />
             <span>Open Drive C:</span>
           </button>
         </div>
 
-        <div class="flex items-center justify-between py-2.5 last:pb-0 gap-3">
+        <div class="flex items-center justify-between px-4 py-3 gap-3">
           <div class="min-w-0 space-y-0.5">
-            <span class="text-zinc-200 font-medium block">AppData & Prefixes</span>
+            <span class="text-zinc-200 font-medium block">AppData & Micro-Prefixes</span>
             <p class="text-[11px] text-zinc-500 truncate">Isolated application data, user saves, and registry hives</p>
           </div>
           <button
             onclick={openPrefixesDir}
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium border border-zinc-700 transition-colors cursor-pointer whitespace-nowrap shrink-0 active:scale-95"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.09] text-zinc-200 text-xs font-medium border border-white/[0.08] transition-colors cursor-pointer whitespace-nowrap shrink-0"
           >
             <FolderArchive class="w-3.5 h-3.5 text-zinc-400" />
-            <span>Open AppData</span>
+            <span>Open Prefixes</span>
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between px-4 py-3 gap-3">
+          <div class="min-w-0 space-y-0.5">
+            <div class="text-zinc-200 font-medium">Clean Runtimes & Cache</div>
+            <p class="text-[11px] text-zinc-500 truncate">Remove downloaded runtimes and shared caches to free disk space</p>
+          </div>
+          <button
+            onclick={() => (isConfirmRemoveAllOpen = true)}
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/15 border border-rose-500/20 transition-colors cursor-pointer shrink-0"
+          >
+            <Trash2 class="w-3.5 h-3.5" />
+            <span>Remove All</span>
           </button>
         </div>
       </div>
-    </div>
-
-    <!-- 3. Cleanup Storage -->
-    <div class="glass-card rounded-2xl p-4 border border-zinc-800 bg-zinc-900/40 flex items-center justify-between gap-4">
-      <div class="flex items-center gap-2.5">
-        <HardDrive class="w-4 h-4 text-zinc-400 shrink-0" />
-        <div>
-          <div class="text-xs font-semibold text-zinc-100">Clean Storage</div>
-          <p class="text-[11px] text-zinc-400">Remove downloaded runtimes to free disk space.</p>
-        </div>
-      </div>
-
-      <button
-        onclick={() => (isConfirmRemoveAllOpen = true)}
-        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-all cursor-pointer active:scale-95 shrink-0"
-      >
-        <Trash2 class="w-3.5 h-3.5" />
-        <span>Remove All</span>
-      </button>
-    </div>
+    </section>
   </div>
 
   <!-- Confirm Remove All Runtimes Modal -->

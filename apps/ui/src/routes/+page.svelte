@@ -330,120 +330,139 @@
   }
 </script>
 
-<div class="flex-1 flex flex-col h-full overflow-hidden bg-[#111113] text-zinc-200">
-  <!-- Segmented Navigation Header with Centered Navbar & Integrated Logo -->
-  <div class="px-8 pt-4 pb-2 flex items-center justify-center shrink-0">
-    <div class="flex items-center p-1 rounded-xl glass-card border border-zinc-800 bg-zinc-900/60 shadow-sm">
-      <!-- Integrated Brand Header -->
-      <div class="flex items-center px-2 py-1 border-r border-zinc-800 mr-1 select-none">
-        <img
-          src="/logo-swifter.png"
-          alt="Swifter"
-          class="w-5 h-5 object-contain"
-        />
-      </div>
+<div class="flex-1 flex h-full w-full overflow-hidden bg-[#111113] text-zinc-200">
+  <!-- Native macOS Sidebar -->
+  <aside class="w-52 shrink-0 bg-[#161618] border-r border-white/[0.06] flex flex-col">
+    <!-- Dedicated traffic-lights drag region -->
+    <div data-tauri-drag-region class="h-11 shrink-0"></div>
 
-      <!-- Segmented Buttons -->
-      <div class="flex items-center space-x-1">
-        <button
-          onclick={() => (activeTab = 'packer')}
-          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 ease-out cursor-pointer {activeTab === 'packer' ? 'bg-zinc-800 text-zinc-100 border-zinc-700 shadow-xs' : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}"
-        >
-          <Package class="w-3.5 h-3.5 text-zinc-400" />
-          Convert
-        </button>
+    <!-- Primary Navigation -->
+    <nav class="flex-1 p-2.5 space-y-0.5 overflow-y-auto">
+      <button
+        onclick={() => (activeTab = 'packer')}
+        class="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors cursor-pointer {activeTab === 'packer' ? 'bg-white/[0.09] text-zinc-100' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'}"
+      >
+        <Package class="w-4 h-4 shrink-0 {activeTab === 'packer' ? 'text-zinc-200' : 'text-zinc-500'}" />
+        <span>Convert</span>
+      </button>
 
-        <button
-          onclick={() => (activeTab = 'shelf')}
-          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 ease-out cursor-pointer {activeTab === 'shelf' ? 'bg-zinc-800 text-zinc-100 border-zinc-700 shadow-xs' : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}"
-        >
-          <Library class="w-3.5 h-3.5 text-zinc-400" />
-          Library
-        </button>
+      <button
+        onclick={() => (activeTab = 'shelf')}
+        class="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors cursor-pointer {activeTab === 'shelf' ? 'bg-white/[0.09] text-zinc-100' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'}"
+      >
+        <Library class="w-4 h-4 shrink-0 {activeTab === 'shelf' ? 'text-zinc-200' : 'text-zinc-500'}" />
+        <span>Library</span>
+      </button>
 
+      <button
+        onclick={() => (activeTab = 'settings')}
+        class="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors cursor-pointer {activeTab === 'settings' ? 'bg-white/[0.09] text-zinc-100' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'}"
+      >
+        <Settings class="w-4 h-4 shrink-0 {activeTab === 'settings' ? 'text-zinc-200' : 'text-zinc-500'}" />
+        <span>Settings</span>
+      </button>
+
+      <button
+        onclick={() => (activeTab = 'about')}
+        class="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors cursor-pointer {activeTab === 'about' ? 'bg-white/[0.09] text-zinc-100' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'}"
+      >
+        <Info class="w-4 h-4 shrink-0 {activeTab === 'about' ? 'text-zinc-200' : 'text-zinc-500'}" />
+        <span>About</span>
+      </button>
+    </nav>
+
+    <!-- Only surface actionable warning when Wine runtime is missing -->
+    {#if runtimeStatus && !runtimeStatus.is_installed}
+      <div class="p-2.5 border-t border-white/[0.06] shrink-0">
         <button
           onclick={() => (activeTab = 'settings')}
-          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 ease-out cursor-pointer {activeTab === 'settings' ? 'bg-zinc-800 text-zinc-100 border-zinc-700 shadow-xs' : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}"
+          class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-[11px] text-amber-300 transition-colors cursor-pointer"
         >
-          <Settings class="w-3.5 h-3.5 text-zinc-400" />
-          <span>Settings</span>
-        </button>
-
-        <button
-          onclick={() => (activeTab = 'about')}
-          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150 ease-out cursor-pointer {activeTab === 'about' ? 'bg-zinc-800 text-zinc-100 border-zinc-700 shadow-xs' : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}"
-        >
-          <Info class="w-3.5 h-3.5 text-zinc-400" />
-          About
+          <span>Wine missing</span>
+          <span class="font-medium">Install</span>
         </button>
       </div>
-    </div>
-  </div>
-
-
-  <!-- Global Error Banner -->
-  {#if errorMessage}
-    <div class="mx-8 mt-2 p-3 rounded-xl bg-zinc-900 border border-rose-500/40 flex items-center justify-between text-rose-300 text-xs">
-      <div class="flex items-center gap-2">
-        <AlertCircle class="w-4 h-4 text-rose-400 shrink-0" />
-        <span>{errorMessage}</span>
-      </div>
-      <button onclick={() => (errorMessage = '')} class="p-1 hover:bg-zinc-800 rounded">
-        <X class="w-3.5 h-3.5" />
-      </button>
-    </div>
-  {/if}
-
-  <!-- Tab Content Views with Smooth Fade Transitions & Proper Top Alignment -->
-  <div class="flex-1 overflow-y-auto relative flex flex-col items-center justify-start w-full px-6 py-4 transition-opacity duration-200">
-    {#if activeTab === 'packer'}
-      {#if !inspection}
-        <div class="w-full max-w-2xl mx-auto flex flex-col space-y-6 py-4 items-center">
-          {#if runtimeStatus && !runtimeStatus.is_installed}
-            <div class="w-full p-3 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between text-xs shadow-sm">
-              <div class="flex items-center gap-2.5 text-zinc-300">
-                <AlertTriangle class="w-4 h-4 text-amber-400 shrink-0" />
-                <span>Wine runtime is missing.</span>
-              </div>
-              <button
-                onclick={() => (activeTab = 'settings')}
-                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium border border-zinc-700 transition-all cursor-pointer active:scale-95 shrink-0"
-              >
-                <span>Open Settings</span>
-                <span class="text-zinc-500">→</span>
-              </button>
-            </div>
-          {/if}
-
-          <Dropzone onSelectPath={handleInspectPath} {isAnalyzing} />
-          <Guide />
-        </div>
-      {:else}
-        <GameInspector
-          {inspection}
-          hasD3DMetal={runtimeStatus?.has_d3dmetal ?? false}
-          onPack={handlePack}
-          onTestRun={handleTestRun}
-          onBack={handleResetPacker}
-          {isPacking}
-          {isDryRunning}
-        />
-      {/if}
-    {:else if activeTab === 'shelf'}
-      <Shelf onNavigatePacker={() => (activeTab = 'packer')} />
-    {:else if activeTab === 'settings'}
-      <SettingsView
-        {runtimeStatus}
-        onInstallRequest={requestInstallRuntime}
-        onInstallEnginesRequest={handleInstallEngines}
-        onInstallVcRedistRequest={handleInstallVcRedist}
-        onSyncFontsRequest={handleSyncFonts}
-        onRemoveRequest={requestRemoveRuntime}
-        onRefresh={refreshRuntimeStatus}
-      />
-    {:else if activeTab === 'about'}
-      <About />
     {/if}
+  </aside>
+
+  <!-- Right Main Workspace -->
+  <div class="flex-1 min-w-0 flex flex-col overflow-hidden">
+    <!-- Single Unified Workspace Header Bar -->
+    <div
+      data-tauri-drag-region
+      class="h-11 shrink-0 px-6 border-b border-white/[0.06] flex items-center justify-between bg-[#111113]"
+    >
+      <div class="flex items-center gap-2 pointer-events-none">
+        <h1 class="text-[13px] font-semibold text-zinc-100">
+          {activeTab === 'packer'
+            ? inspection
+              ? inspection.app_display_name
+              : 'Convert Windows App'
+            : activeTab === 'shelf'
+              ? 'Library'
+              : activeTab === 'settings'
+                ? 'Settings'
+                : 'About Swifter'}
+        </h1>
+      </div>
+    </div>
+
+    <!-- Global Error Banner -->
+    {#if errorMessage}
+      <div class="mx-6 mt-3 p-2.5 rounded-lg bg-zinc-900 border border-rose-500/40 flex items-center justify-between text-rose-300 text-xs shrink-0">
+        <div class="flex items-center gap-2">
+          <AlertCircle class="w-4 h-4 text-rose-400 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+        <button onclick={() => (errorMessage = '')} class="p-1 hover:bg-zinc-800 rounded cursor-pointer">
+          <X class="w-3.5 h-3.5" />
+        </button>
+      </div>
+    {/if}
+
+    <!-- Scrollable Workspace Body -->
+    <div class="flex-1 min-h-0 overflow-y-auto px-6 py-5">
+      {#if activeTab === 'packer'}
+        {#if !inspection}
+          <div class="w-full max-w-4xl mx-auto flex flex-col space-y-5">
+            <Dropzone onSelectPath={handleInspectPath} {isAnalyzing} />
+            <Guide />
+          </div>
+        {:else}
+          <div class="w-full max-w-4xl mx-auto">
+            <GameInspector
+              {inspection}
+              hasD3DMetal={runtimeStatus?.has_d3dmetal ?? false}
+              onPack={handlePack}
+              onTestRun={handleTestRun}
+              onBack={handleResetPacker}
+              {isPacking}
+              {isDryRunning}
+            />
+          </div>
+        {/if}
+      {:else if activeTab === 'shelf'}
+        <div class="w-full max-w-4xl mx-auto">
+          <Shelf onNavigatePacker={() => (activeTab = 'packer')} />
+        </div>
+      {:else if activeTab === 'settings'}
+        <div class="w-full max-w-4xl mx-auto">
+          <SettingsView
+            {runtimeStatus}
+            onInstallRequest={requestInstallRuntime}
+            onInstallEnginesRequest={handleInstallEngines}
+            onInstallVcRedistRequest={handleInstallVcRedist}
+            onSyncFontsRequest={handleSyncFonts}
+            onRemoveRequest={requestRemoveRuntime}
+            onRefresh={refreshRuntimeStatus}
+          />
+        </div>
+      {:else if activeTab === 'about'}
+        <div class="w-full max-w-4xl mx-auto">
+          <About />
+        </div>
+      {/if}
+    </div>
   </div>
 
   <!-- User Agreement Confirmation Modal: Install Runtime -->
@@ -792,9 +811,4 @@
       </div>
     </div>
   {/if}
-
-  <!-- Center Bottom Version Footer -->
-  <footer class="py-2.5 text-center text-[11px] text-zinc-500 font-mono select-none shrink-0 border-t border-white/[0.03]">
-    Swifter v{APP_VERSION} • by msandypr
-  </footer>
 </div>
